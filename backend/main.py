@@ -2,22 +2,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from app.database import engine, Base
-import app.models  # ensures all models are registered
+from app.routers import auth
+import app.models
 
 load_dotenv()
 
-# Create all tables on startup
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SnapFace API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # update with Railway URL later
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
 
 @app.get("/")
 def root():
