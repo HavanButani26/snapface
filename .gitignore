@@ -4,7 +4,7 @@ frontend/.next
 frontend/.env.local
 
 # Python
-backend/__pycache__
+__pycache__
 backend/.env
 backend/venv
 backend/*.egg-info
