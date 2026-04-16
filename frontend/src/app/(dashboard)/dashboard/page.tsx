@@ -8,9 +8,11 @@ import type { Event } from "@/types";
 export default function DashboardPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const user = authService.getUser();
+    const [user, setUser] = useState<ReturnType<typeof authService.getUser>>(null);
 
     useEffect(() => {
+        setUser(authService.getUser());
+
         eventService.list().then((data) => {
             setEvents(data);
             setLoading(false);
@@ -91,8 +93,8 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${event.is_active
-                                        ? "bg-green-50 text-green-700 border border-green-200"
-                                        : "bg-slate-100 text-slate-500"
+                                    ? "bg-green-50 text-green-700 border border-green-200"
+                                    : "bg-slate-100 text-slate-500"
                                     }`}>
                                     {event.is_active ? "Active" : "Inactive"}
                                 </span>
