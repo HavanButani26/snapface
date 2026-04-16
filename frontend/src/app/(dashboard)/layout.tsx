@@ -29,33 +29,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ];
 
     return (
-        <div className="min-h-screen bg-black text-white">
-            <nav className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-8">
-                    <span className="text-lg font-semibold text-violet-400">SnapFace</span>
-                    <div className="flex gap-1">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`px-3 py-1.5 rounded-lg text-sm transition ${pathname === link.href
-                                        ? "bg-zinc-800 text-white"
-                                        : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-                                    }`}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
+        <div className="min-h-screen bg-slate-50">
+            <nav className="bg-white border-b border-slate-200 px-6 py-0 sticky top-0 z-10">
+                <div className="max-w-6xl mx-auto flex items-center justify-between h-14">
+                    <div className="flex items-center gap-8">
+                        <Link href="/dashboard" className="text-lg font-bold text-blue-600">
+                            SnapFace
+                        </Link>
+                        <div className="flex">
+                            {navLinks.map((link) => (
+                                <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    className={`px-4 py-4 text-sm font-medium border-b-2 transition ${pathname === link.href
+                                            ? "border-blue-600 text-blue-600"
+                                            : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+                                        }`}
+                                >
+                                    {link.label}
+                                </Link>
+                            ))}
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-sm text-zinc-400">{user?.name}</span>
-                    <button
-                        onClick={handleLogout}
-                        className="text-sm text-zinc-500 hover:text-white transition"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-semibold">
+                                {user?.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm text-slate-700 font-medium">{user?.name}</span>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="text-sm text-slate-500 hover:text-slate-900 transition"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </nav>
             <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
