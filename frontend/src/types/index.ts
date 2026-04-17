@@ -24,6 +24,8 @@ export interface Photo {
     url: string;
     thumbnail_url: string | null;
     dominant_emotion: string | null;
+    emotion_scores: string | null;
     sharpness_score: number | null;
+    face_count: number;
     uploaded_at: string;
 }
