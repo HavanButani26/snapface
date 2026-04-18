@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# System dependencies for OpenCV + InsightFace
+# System dependencies for OpenCV + InsightFace + C++ compiler
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
@@ -12,9 +12,16 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libglx-mesa0 \
     wget \
+    build-essential \
+    g++ \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+
+# Install numpy first — insightface build depends on it
+RUN pip install --no-cache-dir numpy==1.26.4
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
