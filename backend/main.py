@@ -12,9 +12,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SnapFace API", version="1.0.0")
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "").rstrip("/")
+
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    os.getenv("FRONTEND_URL", ""),
+    FRONTEND_URL,
 ]
 
 app.add_middleware(

@@ -12,6 +12,7 @@ import uuid
 import qrcode
 import io
 import base64
+import os
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -174,13 +175,15 @@ def get_event_qr(
 ):
     event = db.query(Event).filter(
         Event.id == event_id,
-        Event.owner_id == current_user.id
+        Event.owner_id == current_user.id,
     ).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    guest_url = f"http://localhost:3000/guest/{event.qr_token}"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    guest_url = f"{frontend_url}/guest/{event.qr_token}"
     qr_b64 = generate_qr_base64(guest_url)
+
     return {
         "qr_base64": qr_b64,
         "guest_url": guest_url,
