@@ -36,33 +36,27 @@ class PhotoResponse(BaseModel):
 # ---------- Background task ----------
 
 def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
-    """
-    Runs after upload response is sent.
-    Extracts face encodings + emotion + sharpness.
-    """
+    import json as json_lib
     photo = db.query(Photo).filter(Photo.id == photo_id).first()
     if not photo:
         return
 
     try:
-        # Face encodings
         encodings = face_service.extract_encodings(image_bytes)
-        # Sharpness
         sharpness = face_service.compute_sharpness(image_bytes)
-        # Emotion
         emotion = emotion_service.detect_emotion(image_bytes)
 
         photo.face_encoding = encodings[0] if encodings else None
+        photo.all_face_encodings = json_lib.dumps(encodings) if encodings else None
         photo.face_count = len(encodings)
         photo.sharpness_score = sharpness
         photo.dominant_emotion = emotion["dominant_emotion"]
         photo.emotion_scores = emotion["emotion_scores"]
 
         db.commit()
+        print(f"Photo {photo_id}: {len(encodings)} faces encoded")
     except Exception as e:
         print(f"AI processing error for photo {photo_id}: {e}")
-
-
 # ---------- Routes ----------
 
 @router.post("/upload/{event_id}", status_code=201)
