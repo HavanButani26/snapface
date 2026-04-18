@@ -22,7 +22,7 @@ export default function NewEventPage() {
             const event = await eventService.create({
                 name,
                 description: description || undefined,
-                event_date: eventDate || undefined,
+                event_date: eventDate ? `${eventDate}T00:00:00` : undefined,
                 is_password_protected: isPasswordProtected,
                 album_password: isPasswordProtected ? albumPassword : undefined,
             });
@@ -82,7 +82,7 @@ export default function NewEventPage() {
                                 Event date
                             </label>
                             <input
-                                type="datetime-local"
+                                type="date"
                                 value={eventDate}
                                 onChange={(e) => setEventDate(e.target.value)}
                                 className={inputClass}
