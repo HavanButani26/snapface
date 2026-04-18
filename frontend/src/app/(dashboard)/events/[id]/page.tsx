@@ -12,6 +12,33 @@ export default function EventDetailPage() {
     const [qr, setQr] = useState<{ qr_base64: string; guest_url: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+    const [generatingReel, setGeneratingReel] = useState(false);
+
+    async function handleGenerateReel() {
+        setGeneratingReel(true);
+        try {
+            const token = localStorage.getItem("token") || "";
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/reel/generate/${id}`,
+                {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+            if (!res.ok) throw new Error("Failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `snapface_reel.mp4`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            alert("Reel generation failed. Make sure you have at least 3 processed photos.");
+        } finally {
+            setGeneratingReel(false);
+        }
+    }
 
     useEffect(() => {
         Promise.all([eventService.get(id), eventService.getQR(id)]).then(
@@ -57,8 +84,8 @@ export default function EventDetailPage() {
                     )}
                 </div>
                 <span className={`text-xs px-3 py-1.5 rounded-full font-medium border ${event.is_active
-                        ? "bg-green-50 text-green-700 border-green-200"
-                        : "bg-slate-100 text-slate-500 border-slate-200"
+                    ? "bg-green-50 text-green-700 border-green-200"
+                    : "bg-slate-100 text-slate-500 border-slate-200"
                     }`}>
                     {event.is_active ? "Active" : "Inactive"}
                 </span>
@@ -107,8 +134,8 @@ export default function EventDetailPage() {
                             <button
                                 onClick={handleCopy}
                                 className={`w-full text-sm py-2 rounded-lg border transition font-medium ${copied
-                                        ? "bg-green-50 border-green-200 text-green-700"
-                                        : "border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600"
+                                    ? "bg-green-50 border-green-200 text-green-700"
+                                    : "border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600"
                                     }`}
                             >
                                 {copied ? "✓ Copied!" : "Copy guest link"}
@@ -138,6 +165,19 @@ export default function EventDetailPage() {
                             className="w-full border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 text-sm py-2.5 rounded-lg transition font-medium"
                         >
                             🖼 View all photos
+                        </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/capsule`)}
+                            className="w-full border border-slate-200 hover:border-amber-300 text-slate-600 hover:text-amber-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            ⏳ Time capsule
+                        </button>
+                        <button
+                            onClick={handleGenerateReel}
+                            disabled={generatingReel}
+                            className="w-full border border-slate-200 hover:border-green-300 text-slate-600 hover:text-green-600 text-sm py-2.5 rounded-lg transition font-medium disabled:opacity-50"
+                        >
+                            {generatingReel ? "⏳ Generating reel..." : "🎬 Generate story reel"}
                         </button>
                     </div>
                 </div>

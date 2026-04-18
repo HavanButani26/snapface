@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from app.database import engine, Base
-from app.routers import auth, events, photos, guest
+from app.routers import auth, events, photos, guest, capsule, reel
 import app.models
 
 load_dotenv()
@@ -23,6 +23,8 @@ app.include_router(auth.router)
 app.include_router(events.router)
 app.include_router(photos.router)
 app.include_router(guest.router)
+app.include_router(capsule.router)
+app.include_router(reel.router)
 
 @app.get("/")
 def root():

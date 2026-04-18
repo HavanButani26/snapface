@@ -353,6 +353,39 @@ export default function GuestPage() {
                         </div>
                     )}
 
+                    {/* Reel generation for guest */}
+                    {
+                        matched.length >= 2 && (
+                            <button
+                                onClick={async () => {
+                                    const btn = document.getElementById("reel-btn") as HTMLButtonElement;
+                                    if (btn) btn.disabled = true;
+                                    try {
+                                        const { reelService } = await import("@/lib/reel");
+                                        const blob = await reelService.generateGuestReel(
+                                            token,
+                                            matched.map((m) => m.id)
+                                        );
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = "my_snapface_reel.mp4";
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    } catch {
+                                        alert("Reel generation failed. Please try again.");
+                                    } finally {
+                                        if (btn) btn.disabled = false;
+                                    }
+                                }}
+                                id="reel-btn"
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
+                            >
+                                🎬 Generate my story reel
+                            </button>
+                        )
+                    }
+
                     {/* Try again */}
                     <button
                         onClick={() => {
