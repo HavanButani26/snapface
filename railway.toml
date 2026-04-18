@@ -1,10 +1,2 @@
 [build]
 builder = "nixpacks"
-
-[[services]]
-name = "frontend"
-source = "frontend"
-
-[[services]]
-name = "backend"
-source = "backend"
