@@ -59,6 +59,55 @@ def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
         print(f"AI processing error for photo {photo_id}: {e}")
 # ---------- Routes ----------
 
+@router.post("/reprocess/{event_id}")
+def reprocess_event_photos(
+    event_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    import urllib.request
+    event = db.query(Event).filter(
+        Event.id == event_id,
+        Event.owner_id == current_user.id,
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    photos = db.query(Photo).filter(Photo.event_id == event_id).all()
+    for photo in photos:
+        try:
+            image_bytes = urllib.request.urlopen(photo.url).read()
+            background_tasks.add_task(
+                process_photo_ai,
+                str(photo.id),
+                image_bytes,
+                db,
+            )
+        except Exception as e:
+            print(f"Failed to queue photo {photo.id}: {e}")
+
+    return {"message": f"Reprocessing {len(photos)} photos in background"}
+
+@router.get("/debug/{event_id}")
+def debug_photos(
+    event_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    photos = db.query(Photo).filter(Photo.event_id == event_id).all()
+    return [
+        {
+            "id": str(p.id),
+            "face_count": p.face_count,
+            "dominant_emotion": p.dominant_emotion,
+            "sharpness_score": p.sharpness_score,
+            "has_encoding": p.face_encoding is not None,
+            "has_all_encodings": p.all_face_encodings is not None,
+        }
+        for p in photos
+    ]
+
 @router.post("/upload/{event_id}", status_code=201)
 async def upload_photos(
     event_id: str,
