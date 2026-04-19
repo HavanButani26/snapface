@@ -54,6 +54,63 @@ function Countdown({ seconds: initialSeconds, onUnlock }: { seconds: number; onU
     );
 }
 
+function PasswordStep({
+    onVerify,
+}: {
+    onVerify: (password: string) => Promise<void>;
+}) {
+    const [pwd, setPwd] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            await onVerify(pwd);
+        } catch {
+            setError("Incorrect password. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+            <div className="text-4xl mb-4">🔒</div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Album protected</h2>
+            <p className="text-slate-500 text-sm mb-6">
+                Enter the password provided by the photographer to access photos.
+            </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
+                        {error}
+                    </div>
+                )}
+                <input
+                    type="password"
+                    value={pwd}
+                    onChange={(e) => setPwd(e.target.value)}
+                    placeholder="Enter album password"
+                    required
+                    autoFocus
+                    autoComplete="current-password"
+                    className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-3 rounded-xl text-sm transition"
+                >
+                    {loading ? "Verifying..." : "Continue →"}
+                </button>
+            </form>
+        </div>
+    );
+}
+
 export default function GuestPage() {
     const { token } = useParams<{ token: string }>();
 
@@ -64,8 +121,6 @@ export default function GuestPage() {
 
     // Password
     const [password, setPassword] = useState("");
-    const [passwordError, setPasswordError] = useState("");
-    const [verifyingPwd, setVerifyingPwd] = useState(false);
 
     // Selfie
     const [selfie, setSelfie] = useState<File | null>(null);
@@ -100,20 +155,6 @@ export default function GuestPage() {
                 setLoadingEvent(false);
             });
     }, [token]);
-
-    async function handleVerifyPassword(e: React.FormEvent) {
-        e.preventDefault();
-        setPasswordError("");
-        setVerifyingPwd(true);
-        try {
-            const ok = await guestService.verifyPassword(token, password);
-            if (ok) setStep("selfie");
-        } catch {
-            setPasswordError("Incorrect password. Please try again.");
-        } finally {
-            setVerifyingPwd(false);
-        }
-    }
 
     async function handleMatch() {
         if (!selfie) return;
@@ -246,35 +287,17 @@ export default function GuestPage() {
     if (step === "password") {
         return (
             <Wrapper>
-                <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
-                    <div className="text-4xl mb-4">🔒</div>
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Album protected</h2>
-                    <p className="text-slate-500 text-sm mb-6">
-                        Enter the password provided by the photographer to access photos.
-                    </p>
-                    <form onSubmit={handleVerifyPassword} className="space-y-4">
-                        {passwordError && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
-                                {passwordError}
-                            </div>
-                        )}
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter album password"
-                            required
-                            className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-                        />
-                        <button
-                            type="submit"
-                            disabled={verifyingPwd}
-                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-3 rounded-xl text-sm transition"
-                        >
-                            {verifyingPwd ? "Verifying..." : "Continue →"}
-                        </button>
-                    </form>
-                </div>
+                <PasswordStep
+                    onVerify={async (pwd) => {
+                        const ok = await guestService.verifyPassword(token, pwd);
+                        if (ok) {
+                            setPassword(pwd);
+                            setStep("selfie");
+                        } else {
+                            throw new Error("Incorrect password");
+                        }
+                    }}
+                />
             </Wrapper>
         );
     }
