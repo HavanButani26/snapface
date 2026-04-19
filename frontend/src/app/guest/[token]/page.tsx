@@ -113,7 +113,7 @@ function PasswordStep({
 
 export default function GuestPage() {
     const { token } = useParams<{ token: string }>();
-
+    const [resultEmotion, setResultEmotion] = useState("all");
     const [event, setEvent] = useState<GuestEvent | null>(null);
     const [loadingEvent, setLoadingEvent] = useState(true);
     const [eventError, setEventError] = useState("");
@@ -187,7 +187,7 @@ export default function GuestPage() {
 
     // ── Shared wrapper ──
     const Wrapper = ({ children }: { children: React.ReactNode }) => (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="min-h-screen bg-linear-to-b from-blue-50 to-white">
             <div className="bg-white border-b border-slate-200 px-6 py-4 text-center">
                 <span className="text-xl font-bold text-blue-600">SnapFace</span>
             </div>
@@ -426,6 +426,15 @@ export default function GuestPage() {
 
     // ── Step: Results ──
     if (step === "results") {
+        const filteredMatched = resultEmotion === "all"
+            ? matched
+            : matched.filter((p) => p.dominant_emotion === resultEmotion);
+
+        // Get available emotions from matched photos
+        const availableEmotions = ["all", ...Array.from(
+            new Set(matched.map((p) => p.dominant_emotion).filter(Boolean) as string[])
+        )];
+
         return (
             <Wrapper>
                 <div className="space-y-5">
@@ -434,7 +443,9 @@ export default function GuestPage() {
                         }`}>
                         <div className="text-4xl mb-2">{matched.length > 0 ? "🎉" : "😔"}</div>
                         <h2 className="text-xl font-bold text-slate-900 mb-1">
-                            {matched.length > 0 ? `${matched.length} photo${matched.length > 1 ? "s" : ""} found!` : "No photos found"}
+                            {matched.length > 0
+                                ? `${matched.length} photo${matched.length > 1 ? "s" : ""} found!`
+                                : "No photos found"}
                         </h2>
                         <p className="text-slate-500 text-sm">
                             {matched.length > 0
@@ -443,46 +454,96 @@ export default function GuestPage() {
                         </p>
                     </div>
 
-                    {/* Grid */}
-                    {matched.length > 0 && (
-                        <div className="grid grid-cols-2 gap-3">
-                            {matched.map((photo) => (
-                                <div
-                                    key={photo.id}
-                                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-slate-100"
-                                    onClick={() => setLightbox(photo)}
-                                >
-                                    <img
-                                        src={photo.thumbnail_url || photo.url}
-                                        alt=""
-                                        className="w-full h-full object-cover group-hover:scale-105 transition"
-                                    />
-                                    {photo.dominant_emotion && (
-                                        <div className="absolute top-2 left-2 bg-white/90 text-xs px-2 py-0.5 rounded-full font-medium text-slate-700">
-                                            {emotionEmoji[photo.dominant_emotion]}
-                                        </div>
-                                    )}
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
-                                        <span className="opacity-0 group-hover:opacity-100 transition bg-white text-slate-900 text-xs font-medium px-3 py-1.5 rounded-lg">
-                                            Download
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
+                    {/* Emotion filter on results */}
+                    {matched.length > 0 && availableEmotions.length > 1 && (
+                        <div>
+                            <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                                Filter your photos
+                                <span className="text-xs text-blue-500 font-normal">— by emotion</span>
+                            </p>
+                            <div className="flex gap-2 flex-wrap">
+                                {availableEmotions.map((e) => {
+                                    const count = e === "all"
+                                        ? matched.length
+                                        : matched.filter((p) => p.dominant_emotion === e).length;
+                                    return (
+                                        <button
+                                            key={e}
+                                            onClick={() => setResultEmotion(e)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition ${resultEmotion === e
+                                                ? "bg-blue-600 text-white border-blue-600"
+                                                : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                                                }`}
+                                        >
+                                            <span>{emotionEmoji[e] || "🖼️"}</span>
+                                            <span className="capitalize">{e}</span>
+                                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${resultEmotion === e
+                                                ? "bg-white/20 text-white"
+                                                : "bg-slate-100 text-slate-500"
+                                                }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
 
+                    {/* Photo grid */}
+                    {matched.length > 0 && (
+                        <>
+                            {filteredMatched.length === 0 ? (
+                                <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+                                    <div className="text-3xl mb-2">{emotionEmoji[resultEmotion]}</div>
+                                    <p className="text-slate-500 text-sm">
+                                        No {resultEmotion} photos in your matches.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    {filteredMatched.map((photo) => (
+                                        <div
+                                            key={photo.id}
+                                            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-slate-100"
+                                            onClick={() => setLightbox(photo)}
+                                        >
+                                            <img
+                                                src={photo.thumbnail_url || photo.url}
+                                                alt=""
+                                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                                            />
+                                            {photo.dominant_emotion && (
+                                                <div className="absolute top-2 left-2 bg-white/90 text-xs px-2 py-0.5 rounded-full font-medium text-slate-700">
+                                                    {emotionEmoji[photo.dominant_emotion]}
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                                                <span className="opacity-0 group-hover:opacity-100 transition bg-white text-slate-900 text-xs font-medium px-3 py-1.5 rounded-lg">
+                                                    Download
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
                     {/* Reel button */}
-                    {matched.length >= 2 && (
+                    {filteredMatched.length >= 2 && (
                         <button
                             onClick={async () => {
                                 try {
                                     const { reelService } = await import("@/lib/reel");
-                                    const blob = await reelService.generateGuestReel(token, matched.map((m) => m.id));
+                                    const blob = await reelService.generateGuestReel(
+                                        token,
+                                        filteredMatched.map((m) => m.id)
+                                    );
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = "my_snapface_reel.mp4";
+                                    a.download = `my_snapface_reel_${resultEmotion}.mp4`;
                                     a.click();
                                     URL.revokeObjectURL(url);
                                 } catch {
@@ -491,7 +552,7 @@ export default function GuestPage() {
                             }}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
                         >
-                            🎬 Generate my story reel
+                            🎬 Generate reel from {resultEmotion === "all" ? "all" : resultEmotion} photos
                         </button>
                     )}
 
@@ -501,6 +562,7 @@ export default function GuestPage() {
                             setSelfie(null);
                             setSelfiePreview(null);
                             setMatched([]);
+                            setResultEmotion("all");
                             setStep("selfie");
                         }}
                         className="w-full border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 font-medium py-3 rounded-xl text-sm transition"
@@ -519,7 +581,11 @@ export default function GuestPage() {
                             className="bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <img src={lightbox.url} alt="" className="w-full max-h-[65vh] object-contain bg-slate-50" />
+                            <img
+                                src={lightbox.url}
+                                alt=""
+                                className="w-full max-h-[65vh] object-contain bg-slate-50"
+                            />
                             <div className="p-4 flex gap-3">
                                 <a
                                     href={lightbox.url}
@@ -538,9 +604,8 @@ export default function GuestPage() {
                             </div>
                         </div>
                     </div>
-                )
-                }
-            </Wrapper >
+                )}
+            </Wrapper>
         );
     }
 
