@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models.event import Event
 from app.models.photo import Photo
+from app.models.capsule import Capsule
 from app.services import face_service
 from app.routers.auth import verify_password
+from datetime import datetime
 import json
 
 router = APIRouter(prefix="/guest", tags=["guest"])
@@ -20,6 +22,12 @@ class GuestEventResponse(BaseModel):
     is_password_protected: bool
     photographer_name: str
     total_photos: int
+    # Capsule fields
+    has_capsule: bool
+    capsule_is_locked: bool
+    capsule_unlock_at: Optional[str]
+    capsule_message: Optional[str]
+    capsule_seconds_remaining: int
 
 
 class MatchedPhotoResponse(BaseModel):
@@ -37,10 +45,33 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
         Event.qr_token == qr_token,
         Event.is_active == True,
     ).first()
+
     if not event:
         raise HTTPException(status_code=404, detail="Event not found or inactive")
 
     total_photos = db.query(Photo).filter(Photo.event_id == event.id).count()
+
+    # Check capsule
+    capsule = db.query(Capsule).filter(Capsule.event_id == event.id).first()
+    has_capsule = capsule is not None
+    capsule_is_locked = False
+    capsule_unlock_at = None
+    capsule_message = None
+    capsule_seconds_remaining = 0
+
+    if capsule:
+        now = datetime.now(tz=capsule.unlock_at.tzinfo)
+        # Auto-unlock if time has passed
+        if not capsule.is_unlocked and now >= capsule.unlock_at:
+            capsule.is_unlocked = True
+            db.commit()
+
+        capsule_is_locked = not capsule.is_unlocked
+        capsule_unlock_at = capsule.unlock_at.isoformat()
+        capsule_message = capsule.message
+        if capsule_is_locked:
+            diff = capsule.unlock_at - now
+            capsule_seconds_remaining = max(0, int(diff.total_seconds()))
 
     return GuestEventResponse(
         id=str(event.id),
@@ -50,6 +81,11 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
         is_password_protected=event.is_password_protected,
         photographer_name=event.owner.name,
         total_photos=total_photos,
+        has_capsule=has_capsule,
+        capsule_is_locked=capsule_is_locked,
+        capsule_unlock_at=capsule_unlock_at,
+        capsule_message=capsule_message,
+        capsule_seconds_remaining=capsule_seconds_remaining,
     )
 
 
@@ -90,6 +126,19 @@ async def match_selfie(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # Block access if capsule is still locked
+    capsule = db.query(Capsule).filter(Capsule.event_id == event.id).first()
+    if capsule and not capsule.is_unlocked:
+        now = datetime.now(tz=capsule.unlock_at.tzinfo)
+        if now < capsule.unlock_at:
+            raise HTTPException(
+                status_code=403,
+                detail="This album is locked in a time capsule. Come back after the unlock date!"
+            )
+        else:
+            capsule.is_unlocked = True
+            db.commit()
+
     # Password check
     if event.is_password_protected:
         if not password:
@@ -97,7 +146,6 @@ async def match_selfie(
         if not verify_password(password, event.album_password):
             raise HTTPException(status_code=401, detail="Incorrect password")
 
-    # Read & encode selfie
     selfie_bytes = await selfie.read()
     selfie_encodings = face_service.extract_encodings(selfie_bytes)
 
@@ -111,7 +159,6 @@ async def match_selfie(
 
     selfie_encoding = selfie_encodings[0]
 
-    # Get all photos that have been processed
     query = db.query(Photo).filter(
         Photo.event_id == event.id,
         Photo.face_count > 0,
@@ -131,7 +178,6 @@ async def match_selfie(
 
     matched = []
     for photo in photos:
-        # Use all_face_encodings if available, fallback to face_encoding
         if photo.all_face_encodings:
             try:
                 all_encodings = json.loads(photo.all_face_encodings)
@@ -142,14 +188,12 @@ async def match_selfie(
         else:
             continue
 
-        print(f"Photo {photo.id}: checking against {len(all_encodings)} face(s)")
-
         is_match, best_dist = face_service.match_face(
             selfie_encoding=selfie_encoding,
             stored_encodings=all_encodings,
         )
 
-        print(f"  → best distance: {best_dist:.4f} | match: {is_match}")
+        print(f"Photo {photo.id}: distance={best_dist:.4f} match={is_match}")
 
         if is_match:
             matched.append({
@@ -161,8 +205,6 @@ async def match_selfie(
                 "distance": round(best_dist, 4),
             })
 
-    # Sort by confidence (lowest distance = best match first)
     matched.sort(key=lambda x: x["distance"])
     print(f"Total matched: {len(matched)}")
-
     return matched

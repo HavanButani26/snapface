@@ -8,7 +8,51 @@ const emotionEmoji: Record<string, string> = {
     surprised: "😲", neutral: "😐", fear: "😨", disgust: "🤢",
 };
 
-type Step = "landing" | "password" | "selfie" | "matching" | "results";
+type Step = "landing" | "password" | "capsule" | "selfie" | "matching" | "results";
+
+// ── Countdown component ──
+function Countdown({ seconds: initialSeconds, onUnlock }: { seconds: number; onUnlock: () => void }) {
+    const [remaining, setRemaining] = useState(initialSeconds);
+
+    useEffect(() => {
+        if (remaining <= 0) {
+            onUnlock();
+            return;
+        }
+        const timer = setInterval(() => {
+            setRemaining((s) => {
+                if (s <= 1) { onUnlock(); return 0; }
+                return s - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const days = Math.floor(remaining / 86400);
+    const hours = Math.floor((remaining % 86400) / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    const secs = remaining % 60;
+
+    const units = [
+        { val: days, label: "Days" },
+        { val: hours, label: "Hours" },
+        { val: mins, label: "Mins" },
+        { val: secs, label: "Secs" },
+    ];
+
+    return (
+        <div className="grid grid-cols-4 gap-2 my-6">
+            {units.map((u) => (
+                <div key={u.label} className="bg-blue-600 rounded-2xl p-3 text-center text-white">
+                    <div className="text-2xl font-bold tabular-nums">
+                        {String(u.val).padStart(2, "0")}
+                    </div>
+                    <div className="text-xs text-blue-200 mt-0.5">{u.label}</div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export default function GuestPage() {
     const { token } = useParams<{ token: string }>();
@@ -16,35 +60,40 @@ export default function GuestPage() {
     const [event, setEvent] = useState<GuestEvent | null>(null);
     const [loadingEvent, setLoadingEvent] = useState(true);
     const [eventError, setEventError] = useState("");
-
     const [step, setStep] = useState<Step>("landing");
 
-    // Password step
+    // Password
     const [password, setPassword] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [verifyingPwd, setVerifyingPwd] = useState(false);
 
-    // Selfie step
+    // Selfie
     const [selfie, setSelfie] = useState<File | null>(null);
     const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
     const [emotionFilter, setEmotionFilter] = useState("all");
 
-    // Matching step
+    // Matching
     const [progress, setProgress] = useState(0);
     const [matchError, setMatchError] = useState("");
 
-    // Results step
+    // Results
     const [matched, setMatched] = useState<MatchedPhoto[]>([]);
     const [lightbox, setLightbox] = useState<MatchedPhoto | null>(null);
 
-    // Load event on mount
     useEffect(() => {
         guestService
             .getEvent(token)
             .then((data) => {
                 setEvent(data);
                 setLoadingEvent(false);
-                setStep(data.is_password_protected ? "password" : "selfie");
+                // Determine initial step
+                if (data.has_capsule && data.capsule_is_locked) {
+                    setStep("capsule");
+                } else if (data.is_password_protected) {
+                    setStep("password");
+                } else {
+                    setStep("selfie");
+                }
             })
             .catch(() => {
                 setEventError("Event not found or no longer active.");
@@ -52,8 +101,6 @@ export default function GuestPage() {
             });
     }, [token]);
 
-
-    // Verify password
     async function handleVerifyPassword(e: React.FormEvent) {
         e.preventDefault();
         setPasswordError("");
@@ -68,7 +115,6 @@ export default function GuestPage() {
         }
     }
 
-    // Match selfie
     async function handleMatch() {
         if (!selfie) return;
         setStep("matching");
@@ -76,8 +122,7 @@ export default function GuestPage() {
         setMatchError("");
         try {
             const results = await guestService.matchSelfie(
-                token,
-                selfie,
+                token, selfie,
                 event?.is_password_protected ? password : undefined,
                 emotionFilter !== "all" ? emotionFilter : undefined,
                 setProgress
@@ -85,12 +130,35 @@ export default function GuestPage() {
             setMatched(results);
             setStep("results");
         } catch (err: any) {
-            setMatchError(
-                err.response?.data?.detail || "Something went wrong. Please try again."
-            );
+            setMatchError(err.response?.data?.detail || "Something went wrong. Please try again.");
             setStep("selfie");
         }
     }
+
+    function handleCapsuleUnlock() {
+        // Capsule just unlocked on client — move to password or selfie
+        if (event?.is_password_protected) {
+            setStep("password");
+        } else {
+            setStep("selfie");
+        }
+    }
+
+    // ── Shared wrapper ──
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+            <div className="bg-white border-b border-slate-200 px-6 py-4 text-center">
+                <span className="text-xl font-bold text-blue-600">SnapFace</span>
+            </div>
+            <div className="bg-blue-600 text-white px-6 py-5 text-center">
+                <h1 className="text-xl font-bold">{event?.name}</h1>
+                <p className="text-blue-100 text-sm mt-1">
+                    by {event?.photographer_name} · {event?.total_photos} photos
+                </p>
+            </div>
+            <div className="max-w-lg mx-auto px-6 py-10">{children}</div>
+        </div>
+    );
 
     // ── Loading ──
     if (loadingEvent) {
@@ -104,7 +172,7 @@ export default function GuestPage() {
         );
     }
 
-    // ── Event error ──
+    // ── Error ──
     if (eventError) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
@@ -117,23 +185,62 @@ export default function GuestPage() {
         );
     }
 
-    // Shared layout wrapper
-    const Wrapper = ({ children }: { children: React.ReactNode }) => (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 text-center">
-                <span className="text-xl font-bold text-blue-600">SnapFace</span>
-            </div>
-            {/* Event banner */}
-            <div className="bg-blue-600 text-white px-6 py-5 text-center">
-                <h1 className="text-xl font-bold">{event?.name}</h1>
-                <p className="text-blue-100 text-sm mt-1">
-                    by {event?.photographer_name} · {event?.total_photos} photos
-                </p>
-            </div>
-            <div className="max-w-lg mx-auto px-6 py-10">{children}</div>
-        </div>
-    );
+    // ── Step: Capsule locked ──
+    if (step === "capsule" && event) {
+        return (
+            <Wrapper>
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+                    {/* Lock icon */}
+                    <div className="w-20 h-20 bg-amber-50 border-2 border-amber-200 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">
+                        ⏳
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">Memory time capsule</h2>
+                    <p className="text-slate-500 text-sm mb-1">
+                        These photos are locked until:
+                    </p>
+                    <p className="text-blue-600 font-semibold text-sm mb-4">
+                        {event.capsule_unlock_at
+                            ? new Date(event.capsule_unlock_at).toLocaleString("en-IN", {
+                                day: "numeric", month: "long", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                            })
+                            : ""}
+                    </p>
+
+                    {/* Countdown */}
+                    {event.capsule_seconds_remaining > 0 && (
+                        <Countdown
+                            seconds={event.capsule_seconds_remaining}
+                            onUnlock={handleCapsuleUnlock}
+                        />
+                    )}
+
+                    {/* Photographer message */}
+                    {event.capsule_message && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4 text-left">
+                            <p className="text-xs text-blue-500 font-semibold mb-1 uppercase tracking-wide">
+                                Message from {event.photographer_name}
+                            </p>
+                            <p className="text-slate-700 text-sm italic leading-relaxed">
+                                "{event.capsule_message}"
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Decorative info */}
+                    <div className="mt-6 pt-5 border-t border-slate-100 space-y-2">
+                        <p className="text-xs text-slate-400">
+                            {event.total_photos} photos waiting for you
+                        </p>
+                        <p className="text-xs text-slate-400">
+                            Come back when the countdown ends to access your memories
+                        </p>
+                    </div>
+                </div>
+            </Wrapper>
+        );
+    }
 
     // ── Step: Password ──
     if (step === "password") {
@@ -164,7 +271,7 @@ export default function GuestPage() {
                             disabled={verifyingPwd}
                             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-3 rounded-xl text-sm transition"
                         >
-                            {verifyingPwd ? "Verifying..." : "Continue"}
+                            {verifyingPwd ? "Verifying..." : "Continue →"}
                         </button>
                     </form>
                 </div>
@@ -180,11 +287,17 @@ export default function GuestPage() {
                     <div className="text-center">
                         <h2 className="text-xl font-bold text-slate-900">Find your photos</h2>
                         <p className="text-slate-500 text-sm mt-1">
-                            Upload a selfie and our AI will find all your photos from this event instantly.
+                            Upload a selfie and our AI will find all your photos instantly.
                         </p>
                     </div>
 
-                    {/* Selfie upload — direct input, no dropzone */}
+                    {matchError && (
+                        <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+                            {matchError}
+                        </div>
+                    )}
+
+                    {/* Selfie upload */}
                     <div className="relative">
                         <input
                             type="file"
@@ -198,17 +311,11 @@ export default function GuestPage() {
                                 setSelfiePreview(URL.createObjectURL(file));
                             }}
                         />
-                        <div className={`border-2 border-dashed rounded-2xl transition overflow-hidden ${selfiePreview
-                            ? "border-blue-300 bg-white"
-                            : "border-slate-200 hover:border-blue-300 bg-white hover:bg-slate-50"
+                        <div className={`border-2 border-dashed rounded-2xl transition overflow-hidden ${selfiePreview ? "border-blue-300 bg-white" : "border-slate-200 hover:border-blue-300 bg-white hover:bg-slate-50"
                             }`}>
                             {selfiePreview ? (
                                 <div className="relative">
-                                    <img
-                                        src={selfiePreview}
-                                        alt="Your selfie"
-                                        className="w-full h-56 object-cover"
-                                    />
+                                    <img src={selfiePreview} alt="Your selfie" className="w-full h-56 object-cover" />
                                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                         <span className="bg-white text-slate-700 text-sm font-medium px-4 py-2 rounded-lg shadow">
                                             Tap to change photo
@@ -219,9 +326,7 @@ export default function GuestPage() {
                                 <div className="py-14 text-center pointer-events-none">
                                     <div className="text-5xl mb-3">🤳</div>
                                     <p className="text-slate-700 font-medium mb-1">Upload your selfie</p>
-                                    <p className="text-slate-400 text-xs">
-                                        Tap to browse or drag a photo here
-                                    </p>
+                                    <p className="text-slate-400 text-xs">Tap to browse or drag a photo here</p>
                                 </div>
                             )}
                         </div>
@@ -230,7 +335,7 @@ export default function GuestPage() {
                     {/* Emotion filter */}
                     <div>
                         <p className="text-sm font-medium text-slate-700 mb-2">
-                            Filter by emotion{" "}
+                            Filter by emotion
                             <span className="text-xs text-blue-500 font-normal ml-1">— unique to SnapFace</span>
                         </p>
                         <div className="flex gap-2 flex-wrap">
@@ -257,7 +362,6 @@ export default function GuestPage() {
                         <p>• Avoid sunglasses or heavy filters</p>
                     </div>
 
-                    {/* Match button */}
                     <button
                         onClick={handleMatch}
                         disabled={!selfie}
@@ -270,24 +374,20 @@ export default function GuestPage() {
         );
     }
 
-    // ── Step: Matching (loading) ──
+    // ── Step: Matching ──
     if (step === "matching") {
         return (
             <Wrapper>
                 <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm text-center">
                     <div className="relative w-20 h-20 mx-auto mb-6">
                         {selfiePreview && (
-                            <img
-                                src={selfiePreview}
-                                alt=""
-                                className="w-20 h-20 rounded-full object-cover border-4 border-blue-100"
-                            />
+                            <img src={selfiePreview} alt="" className="w-20 h-20 rounded-full object-cover border-4 border-blue-100" />
                         )}
                         <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
                     </div>
                     <h2 className="text-lg font-bold text-slate-900 mb-2">Finding your photos...</h2>
                     <p className="text-slate-500 text-sm mb-6">
-                        Our AI is scanning {event?.total_photos} photos to find your matches.
+                        AI is scanning {event?.total_photos} photos for your face.
                     </p>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
@@ -307,15 +407,11 @@ export default function GuestPage() {
             <Wrapper>
                 <div className="space-y-5">
                     {/* Summary */}
-                    <div className={`rounded-2xl p-5 text-center border ${matched.length > 0
-                        ? "bg-green-50 border-green-200"
-                        : "bg-amber-50 border-amber-200"
+                    <div className={`rounded-2xl p-5 text-center border ${matched.length > 0 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
                         }`}>
                         <div className="text-4xl mb-2">{matched.length > 0 ? "🎉" : "😔"}</div>
                         <h2 className="text-xl font-bold text-slate-900 mb-1">
-                            {matched.length > 0
-                                ? `${matched.length} photo${matched.length > 1 ? "s" : ""} found!`
-                                : "No photos found"}
+                            {matched.length > 0 ? `${matched.length} photo${matched.length > 1 ? "s" : ""} found!` : "No photos found"}
                         </h2>
                         <p className="text-slate-500 text-sm">
                             {matched.length > 0
@@ -324,7 +420,7 @@ export default function GuestPage() {
                         </p>
                     </div>
 
-                    {/* Matched grid */}
+                    {/* Grid */}
                     {matched.length > 0 && (
                         <div className="grid grid-cols-2 gap-3">
                             {matched.map((photo) => (
@@ -353,38 +449,28 @@ export default function GuestPage() {
                         </div>
                     )}
 
-                    {/* Reel generation for guest */}
-                    {
-                        matched.length >= 2 && (
-                            <button
-                                onClick={async () => {
-                                    const btn = document.getElementById("reel-btn") as HTMLButtonElement;
-                                    if (btn) btn.disabled = true;
-                                    try {
-                                        const { reelService } = await import("@/lib/reel");
-                                        const blob = await reelService.generateGuestReel(
-                                            token,
-                                            matched.map((m) => m.id)
-                                        );
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = url;
-                                        a.download = "my_snapface_reel.mp4";
-                                        a.click();
-                                        URL.revokeObjectURL(url);
-                                    } catch {
-                                        alert("Reel generation failed. Please try again.");
-                                    } finally {
-                                        if (btn) btn.disabled = false;
-                                    }
-                                }}
-                                id="reel-btn"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
-                            >
-                                🎬 Generate my story reel
-                            </button>
-                        )
-                    }
+                    {/* Reel button */}
+                    {matched.length >= 2 && (
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const { reelService } = await import("@/lib/reel");
+                                    const blob = await reelService.generateGuestReel(token, matched.map((m) => m.id));
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = "my_snapface_reel.mp4";
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                } catch {
+                                    alert("Reel generation failed. Please try again.");
+                                }
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
+                        >
+                            🎬 Generate my story reel
+                        </button>
+                    )}
 
                     {/* Try again */}
                     <button
@@ -410,11 +496,7 @@ export default function GuestPage() {
                             className="bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <img
-                                src={lightbox.url}
-                                alt=""
-                                className="w-full max-h-[65vh] object-contain bg-slate-50"
-                            />
+                            <img src={lightbox.url} alt="" className="w-full max-h-[65vh] object-contain bg-slate-50" />
                             <div className="p-4 flex gap-3">
                                 <a
                                     href={lightbox.url}
@@ -433,8 +515,9 @@ export default function GuestPage() {
                             </div>
                         </div>
                     </div>
-                )}
-            </Wrapper>
+                )
+                }
+            </Wrapper >
         );
     }
 

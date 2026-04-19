@@ -1,8 +1,6 @@
 import axios from "axios";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// Guest uses plain axios — no auth token needed
 const guestApi = axios.create({ baseURL: BASE });
 
 export interface GuestEvent {
@@ -13,6 +11,11 @@ export interface GuestEvent {
     is_password_protected: boolean;
     photographer_name: string;
     total_photos: number;
+    has_capsule: boolean;
+    capsule_is_locked: boolean;
+    capsule_unlock_at: string | null;
+    capsule_message: string | null;
+    capsule_seconds_remaining: number;
 }
 
 export interface MatchedPhoto {
@@ -21,6 +24,7 @@ export interface MatchedPhoto {
     thumbnail_url: string | null;
     dominant_emotion: string | null;
     face_count: number;
+    distance: number;
 }
 
 export const guestService = {
