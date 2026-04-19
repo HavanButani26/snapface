@@ -425,15 +425,67 @@ export default function GuestPage() {
     }
 
     // ── Step: Results ──
+    // ── Step: Results ──
     if (step === "results") {
         const filteredMatched = resultEmotion === "all"
             ? matched
             : matched.filter((p) => p.dominant_emotion === resultEmotion);
 
-        // Get available emotions from matched photos
         const availableEmotions = ["all", ...Array.from(
             new Set(matched.map((p) => p.dominant_emotion).filter(Boolean) as string[])
         )];
+
+        async function downloadSingle(url: string, filename: string) {
+            try {
+                const res = await fetch(url);
+                const blob = await res.blob();
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } catch {
+                window.open(url, "_blank");
+            }
+        }
+
+        async function downloadAllZip() {
+            try {
+                const JSZip = (await import("jszip")).default;
+                const zip = new JSZip();
+                const folder = zip.folder("my_snapface_photos")!;
+
+                await Promise.all(
+                    filteredMatched.map(async (photo, idx) => {
+                        const res = await fetch(photo.url);
+                        const blob = await res.blob();
+                        const ext = photo.url.split(".").pop()?.split("?")[0] || "jpg";
+                        const emotion = photo.dominant_emotion ? `_${photo.dominant_emotion}` : "";
+                        folder.file(`photo_${idx + 1}${emotion}.${ext}`, blob);
+                    })
+                );
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = `snapface_photos_${resultEmotion}.zip`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } catch (err) {
+                alert("Download failed. Please try downloading individually.");
+            }
+        }
+
+        async function downloadAllDirect() {
+            for (let i = 0; i < filteredMatched.length; i++) {
+                const photo = filteredMatched[i];
+                const ext = photo.url.split(".").pop()?.split("?")[0] || "jpg";
+                const emotion = photo.dominant_emotion ? `_${photo.dominant_emotion}` : "";
+                await downloadSingle(photo.url, `snapface_${i + 1}${emotion}.${ext}`);
+                // Small delay between downloads
+                await new Promise((r) => setTimeout(r, 400));
+            }
+        }
 
         return (
             <Wrapper>
@@ -449,12 +501,38 @@ export default function GuestPage() {
                         </h2>
                         <p className="text-slate-500 text-sm">
                             {matched.length > 0
-                                ? "Tap any photo to download it."
+                                ? "Download individually or all at once."
                                 : "Try uploading a clearer selfie or change the emotion filter."}
                         </p>
                     </div>
 
-                    {/* Emotion filter on results */}
+                    {/* Bulk download buttons */}
+                    {filteredMatched.length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                                Download all {filteredMatched.length} photos
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={downloadAllZip}
+                                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition"
+                                >
+                                    <span>📦</span> Download as ZIP
+                                </button>
+                                <button
+                                    onClick={downloadAllDirect}
+                                    className="flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-2.5 rounded-xl transition"
+                                >
+                                    <span>📥</span> Download all files
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 text-center">
+                                ZIP works best · "Download all files" opens each file separately
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Emotion filter */}
                     {matched.length > 0 && availableEmotions.length > 1 && (
                         <div>
                             <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
@@ -471,15 +549,15 @@ export default function GuestPage() {
                                             key={e}
                                             onClick={() => setResultEmotion(e)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition ${resultEmotion === e
-                                                ? "bg-blue-600 text-white border-blue-600"
-                                                : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                                                    ? "bg-blue-600 text-white border-blue-600"
+                                                    : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
                                                 }`}
                                         >
                                             <span>{emotionEmoji[e] || "🖼️"}</span>
                                             <span className="capitalize">{e}</span>
                                             <span className={`text-xs px-1.5 py-0.5 rounded-full ${resultEmotion === e
-                                                ? "bg-white/20 text-white"
-                                                : "bg-slate-100 text-slate-500"
+                                                    ? "bg-white/20 text-white"
+                                                    : "bg-slate-100 text-slate-500"
                                                 }`}>
                                                 {count}
                                             </span>
@@ -502,27 +580,34 @@ export default function GuestPage() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3">
-                                    {filteredMatched.map((photo) => (
+                                    {filteredMatched.map((photo, idx) => (
                                         <div
                                             key={photo.id}
-                                            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-slate-100"
-                                            onClick={() => setLightbox(photo)}
+                                            className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group"
                                         >
                                             <img
                                                 src={photo.thumbnail_url || photo.url}
                                                 alt=""
-                                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                                                className="w-full h-full object-cover"
+                                                onClick={() => setLightbox(photo)}
                                             />
+                                            {/* Emotion badge */}
                                             {photo.dominant_emotion && (
                                                 <div className="absolute top-2 left-2 bg-white/90 text-xs px-2 py-0.5 rounded-full font-medium text-slate-700">
                                                     {emotionEmoji[photo.dominant_emotion]}
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
-                                                <span className="opacity-0 group-hover:opacity-100 transition bg-white text-slate-900 text-xs font-medium px-3 py-1.5 rounded-lg">
-                                                    Download
-                                                </span>
-                                            </div>
+                                            {/* Download button — always visible on mobile, hover on desktop */}
+                                            <button
+                                                onClick={() => {
+                                                    const ext = photo.url.split(".").pop()?.split("?")[0] || "jpg";
+                                                    const emotion = photo.dominant_emotion ? `_${photo.dominant_emotion}` : "";
+                                                    downloadSingle(photo.url, `snapface_${idx + 1}${emotion}.${ext}`);
+                                                }}
+                                                className="absolute bottom-2 right-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium transition opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-1"
+                                            >
+                                                <span>↓</span> Save
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -586,21 +671,30 @@ export default function GuestPage() {
                                 alt=""
                                 className="w-full max-h-[65vh] object-contain bg-slate-50"
                             />
-                            <div className="p-4 flex gap-3">
-                                <a
-                                    href={lightbox.url}
-                                    download
-                                    target="_blank"
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-xl text-center transition"
-                                >
-                                    Download photo
-                                </a>
-                                <button
-                                    onClick={() => setLightbox(null)}
-                                    className="px-5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:border-slate-300 transition"
-                                >
-                                    Close
-                                </button>
+                            <div className="p-4 space-y-2">
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const ext = lightbox.url.split(".").pop()?.split("?")[0] || "jpg";
+                                            const emotion = lightbox.dominant_emotion ? `_${lightbox.dominant_emotion}` : "";
+                                            downloadSingle(lightbox.url, `snapface${emotion}.${ext}`);
+                                        }}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-xl text-center transition"
+                                    >
+                                        📥 Download photo
+                                    </button>
+                                    <button
+                                        onClick={() => setLightbox(null)}
+                                        className="px-5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:border-slate-300 transition"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                                {lightbox.dominant_emotion && (
+                                    <p className="text-center text-xs text-slate-400">
+                                        {emotionEmoji[lightbox.dominant_emotion]} {lightbox.dominant_emotion} photo
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
