@@ -229,41 +229,101 @@ def get_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from sqlalchemy import extract, case
     now = datetime.now()
+
+    # Current month
     month_invoices = db.query(Invoice).filter(
         Invoice.owner_id == current_user.id,
         extract("month", Invoice.created_at) == now.month,
         extract("year", Invoice.created_at) == now.year,
     ).all()
 
-    all_invoices = db.query(Invoice).filter(Invoice.owner_id == current_user.id).all()
+    # All invoices
+    all_invoices = db.query(Invoice).filter(
+        Invoice.owner_id == current_user.id
+    ).all()
 
+    # ── Last 6 months revenue ──
+    monthly_revenue = []
+    for i in range(5, -1, -1):
+        from dateutil.relativedelta import relativedelta
+        target = now - relativedelta(months=i)
+        month_invs = [
+            inv for inv in all_invoices
+            if inv.created_at.month == target.month
+            and inv.created_at.year == target.year
+        ]
+        collected = sum(inv.total_amount for inv in month_invs if inv.status == "paid")
+        pending = sum(inv.total_amount for inv in month_invs if inv.status == "pending")
+        monthly_revenue.append({
+            "month": target.strftime("%b %Y"),
+            "short_month": target.strftime("%b"),
+            "collected": round(collected, 2),
+            "pending": round(pending, 2),
+            "total": round(collected + pending, 2),
+        })
+
+    # ── Invoice status breakdown ──
+    status_counts = {
+        "paid": len([i for i in all_invoices if i.status == "paid"]),
+        "pending": len([i for i in all_invoices if i.status == "pending"]),
+        "overdue": len([i for i in all_invoices if i.status == "overdue"]),
+        "cancelled": len([i for i in all_invoices if i.status == "cancelled"]),
+    }
+
+    status_amounts = {
+        "paid": round(sum(i.total_amount for i in all_invoices if i.status == "paid"), 2),
+        "pending": round(sum(i.total_amount for i in all_invoices if i.status == "pending"), 2),
+        "overdue": round(sum(i.total_amount for i in all_invoices if i.status == "overdue"), 2),
+        "cancelled": round(sum(i.total_amount for i in all_invoices if i.status == "cancelled"), 2),
+    }
+
+    # ── Top 5 clients by revenue ──
+    client_revenue: dict = {}
+    for inv in all_invoices:
+        if inv.client_name not in client_revenue:
+            client_revenue[inv.client_name] = {"total": 0, "collected": 0, "count": 0}
+        client_revenue[inv.client_name]["total"] += inv.total_amount
+        client_revenue[inv.client_name]["count"] += 1
+        if inv.status == "paid":
+            client_revenue[inv.client_name]["collected"] += inv.total_amount
+
+    top_clients = sorted(
+        [{"name": k, **v} for k, v in client_revenue.items()],
+        key=lambda x: x["total"],
+        reverse=True
+    )[:5]
+
+    for c in top_clients:
+        c["total"] = round(c["total"], 2)
+        c["collected"] = round(c["collected"], 2)
+
+    # ── Summary stats ──
     monthly_total = sum(i.total_amount for i in month_invoices)
     monthly_collected = sum(i.total_amount for i in month_invoices if i.status == "paid")
     monthly_pending = sum(i.total_amount for i in month_invoices if i.status == "pending")
-
     total_collected = sum(i.total_amount for i in all_invoices if i.status == "paid")
     total_pending = sum(i.total_amount for i in all_invoices if i.status == "pending")
     total_billed = sum(i.total_amount for i in all_invoices)
 
     return {
         "monthly": {
-            "total_billed": monthly_total,
-            "collected": monthly_collected,
-            "pending": monthly_pending,
+            "total_billed": round(monthly_total, 2),
+            "collected": round(monthly_collected, 2),
+            "pending": round(monthly_pending, 2),
             "invoice_count": len(month_invoices),
         },
         "all_time": {
-            "total_billed": total_billed,
-            "collected": total_collected,
-            "pending": total_pending,
+            "total_billed": round(total_billed, 2),
+            "collected": round(total_collected, 2),
+            "pending": round(total_pending, 2),
             "invoice_count": len(all_invoices),
         },
-        "by_status": {
-            "pending": len([i for i in all_invoices if i.status == "pending"]),
-            "paid": len([i for i in all_invoices if i.status == "paid"]),
-            "overdue": len([i for i in all_invoices if i.status == "overdue"]),
-        }
+        "by_status": status_counts,
+        "by_status_amount": status_amounts,
+        "monthly_revenue": monthly_revenue,
+        "top_clients": top_clients,
     }
 
 

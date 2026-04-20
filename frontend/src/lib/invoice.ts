@@ -46,7 +46,27 @@ export interface Analytics {
         pending: number;
         paid: number;
         overdue: number;
+        cancelled: number;
     };
+    by_status_amount: {
+        pending: number;
+        paid: number;
+        overdue: number;
+        cancelled: number;
+    };
+    monthly_revenue: {
+        month: string;
+        short_month: string;
+        collected: number;
+        pending: number;
+        total: number;
+    }[];
+    top_clients: {
+        name: string;
+        total: number;
+        collected: number;
+        count: number;
+    }[];
 }
 
 export interface StudioProfile {
