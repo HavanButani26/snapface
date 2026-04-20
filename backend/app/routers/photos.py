@@ -9,6 +9,7 @@ from app.routers.auth import get_current_user
 from app.models.user import User
 from app.services import cloudinary_service, face_service, emotion_service
 import json
+import os
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -108,6 +109,12 @@ def debug_photos(
         for p in photos
     ]
 
+from app.services.subscription_service import (
+    get_or_create_subscription, check_storage_available, add_storage_used, format_bytes
+)
+from app.services.email_service import send_storage_limit_email
+
+# Inside upload_photos, add BEFORE the file processing loop:
 @router.post("/upload/{event_id}", status_code=201)
 async def upload_photos(
     event_id: str,
@@ -116,7 +123,6 @@ async def upload_photos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Verify event ownership
     event = db.query(Event).filter(
         Event.id == event_id,
         Event.owner_id == current_user.id,
@@ -124,28 +130,51 @@ async def upload_photos(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # ── Storage check ──
+    sub = get_or_create_subscription(db, current_user)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
     uploaded = []
     errors = []
 
     for file in files:
         try:
-            # Validate type
             if file.content_type not in ALLOWED_TYPES:
                 errors.append({"file": file.filename, "error": "Invalid file type"})
                 continue
 
             image_bytes = await file.read()
 
-            # Validate size
             if len(image_bytes) > MAX_SIZE_MB * 1024 * 1024:
                 errors.append({"file": file.filename, "error": "File too large (max 20MB)"})
+                continue
+
+            # Check storage limit
+            if not check_storage_available(sub, len(image_bytes)):
+                # Send email notification
+                background_tasks.add_task(
+                    send_storage_limit_email,
+                    current_user.email,
+                    current_user.name,
+                    format_bytes(sub.storage_used_bytes),
+                    format_bytes(sub.storage_limit_bytes),
+                    sub.plan_name.title(),
+                    f"{frontend_url}/subscription",
+                )
+                errors.append({
+                    "file": file.filename,
+                    "error": f"Storage limit reached ({format_bytes(sub.storage_limit_bytes)}). Please upgrade your plan.",
+                    "storage_limit_reached": True,
+                })
                 continue
 
             # Upload to Cloudinary
             folder = f"snapface/{event_id}"
             result = cloudinary_service.upload_photo(image_bytes, folder=folder)
 
-            # Save to DB (AI processing happens in background)
+            # Update storage usage
+            add_storage_used(db, sub, len(image_bytes))
+
             photo = Photo(
                 event_id=event_id,
                 cloudinary_public_id=result["public_id"],
@@ -156,7 +185,6 @@ async def upload_photos(
             db.commit()
             db.refresh(photo)
 
-            # Queue AI processing (non-blocking)
             background_tasks.add_task(
                 process_photo_ai,
                 str(photo.id),
@@ -178,6 +206,11 @@ async def upload_photos(
         "uploaded": len(uploaded),
         "errors": errors,
         "photos": uploaded,
+        "storage": {
+            "used": format_bytes(sub.storage_used_bytes),
+            "limit": format_bytes(sub.storage_limit_bytes),
+            "percent": round((sub.storage_used_bytes / max(sub.storage_limit_bytes, 1)) * 100, 1),
+        }
     }
 
 

@@ -10,6 +10,7 @@ const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: "🏠" },
     { href: "/events", label: "Events", icon: "📅" },
     { href: "/billing", label: "Billing", icon: "💰" },
+    { href: "/subscription", label: "Subscription", icon: "⭐" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -51,8 +52,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         key={link.href}
                                         href={link.href}
                                         className={`px-4 py-4 text-sm font-medium border-b-2 transition ${pathname === link.href
-                                                ? "border-blue-600 text-blue-600"
-                                                : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+                                            ? "border-blue-600 text-blue-600"
+                                            : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
                                             }`}
                                     >
                                         {link.label}
@@ -102,8 +103,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     key={link.href}
                                     href={link.href}
                                     className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition ${pathname === link.href
-                                            ? "bg-blue-50 text-blue-600"
-                                            : "text-slate-600 hover:bg-slate-50"
+                                        ? "bg-blue-50 text-blue-600"
+                                        : "text-slate-600 hover:bg-slate-50"
                                         }`}
                                 >
                                     <span>{link.icon}</span>

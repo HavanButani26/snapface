@@ -101,3 +101,89 @@ def send_payment_confirmation_email(
     except Exception as e:
         print(f"Payment confirmation email error: {e}")
         return False
+    
+def send_storage_limit_email(
+    to_email: str,
+    name: str,
+    used_label: str,
+    limit_label: str,
+    plan_name: str,
+    upgrade_url: str,
+):
+    try:
+        params = {
+            "from": f"SnapFace <{FROM_EMAIL}>",
+            "to": [to_email],
+            "subject": "Storage limit reached — Upgrade your SnapFace plan",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #DC2626; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                    <div style="font-size: 48px;">⚠️</div>
+                    <h1 style="color: white; margin: 8px 0 0;">Storage limit reached!</h1>
+                </div>
+                <div style="background: #F8FAFC; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #E2E8F0;">
+                    <p style="color: #0F172A;">Hi <b>{name}</b>,</p>
+                    <p style="color: #64748B;">Your SnapFace account has reached its storage limit.</p>
+
+                    <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                        <p style="color: #DC2626; font-weight: bold; margin: 0;">
+                            {used_label} used of {limit_label} ({plan_name} plan)
+                        </p>
+                    </div>
+
+                    <p style="color: #64748B;">
+                        New photo uploads are blocked until you upgrade your plan or delete some photos.
+                    </p>
+
+                    <a href="{upgrade_url}" style="display: block; background: #2563EB; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; margin-top: 20px;">
+                        Upgrade Plan →
+                    </a>
+
+                    <p style="color: #94A3B8; font-size: 12px; margin-top: 24px; text-align: center;">
+                        SnapFace · AI Photo Sharing Platform
+                    </p>
+                </div>
+            </div>
+            """,
+        }
+        resend.Emails.send(params)
+        return True
+    except Exception as e:
+        print(f"Storage limit email error: {e}")
+        return False
+
+
+def send_subscription_expiry_warning(
+    to_email: str,
+    name: str,
+    plan_name: str,
+    days_remaining: int,
+    renew_url: str,
+):
+    try:
+        params = {
+            "from": f"SnapFace <{FROM_EMAIL}>",
+            "to": [to_email],
+            "subject": f"Your SnapFace {plan_name} plan expires in {days_remaining} days",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #D97706; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                    <div style="font-size: 48px;">⏰</div>
+                    <h1 style="color: white; margin: 8px 0 0;">Plan expiring soon!</h1>
+                </div>
+                <div style="background: #F8FAFC; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #E2E8F0;">
+                    <p style="color: #0F172A;">Hi <b>{name}</b>,</p>
+                    <p style="color: #64748B;">Your <b>{plan_name}</b> plan expires in <b>{days_remaining} days</b>.</p>
+                    <p style="color: #64748B;">After expiry, your account will be downgraded to the Free plan (2GB limit).</p>
+                    <a href="{renew_url}" style="display: block; background: #2563EB; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; margin-top: 20px;">
+                        Renew Now →
+                    </a>
+                </div>
+            </div>
+            """,
+        }
+        resend.Emails.send(params)
+        return True
+    except Exception as e:
+        print(f"Expiry warning email error: {e}")
+        return False

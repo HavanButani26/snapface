@@ -5,20 +5,34 @@ import Link from "next/link";
 import { eventService } from "@/lib/events";
 import { authService } from "@/lib/auth";
 import type { Event } from "@/types";
+import { subscriptionService } from "@/lib/subscription";
 
 export default function DashboardPage() {
     const router = useRouter();
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<ReturnType<typeof authService.getUser>>(null);
+    const [sub, setSub] = useState<any>(null);
 
     useEffect(() => {
         setUser(authService.getUser());
-        eventService.list().then((data) => {
+        Promise.all([
+            eventService.list(),
+            subscriptionService.getMySubscription(),
+        ]).then(([data, subData]) => {
             setEvents(data);
+            setSub(subData);
             setLoading(false);
         });
     }, []);
+
+    // useEffect(() => {
+    //     setUser(authService.getUser());
+    //     eventService.list().then((data) => {
+    //         setEvents(data);
+    //         setLoading(false);
+    //     });
+    // }, []);
 
     const totalPhotos = events.reduce((sum, e) => sum + e.photo_count, 0);
     const activeEvents = events.filter((e) => e.is_active).length;
@@ -76,6 +90,34 @@ export default function DashboardPage() {
                     </div>
                 ))}
             </div>
+
+            {sub && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-900">Storage</span>
+                            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full font-medium">
+                                {sub.plan_label}
+                            </span>
+                        </div>
+                        <Link href="/subscription" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                            {sub.plan_name === "free" ? "Upgrade →" : "Manage →"}
+                        </Link>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                        <span>{sub.storage_used_label} used</span>
+                        <span>{sub.storage_limit_label}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full rounded-full transition-all ${sub.storage_percent >= 90 ? "bg-red-500" :
+                                    sub.storage_percent >= 70 ? "bg-amber-500" : "bg-blue-600"
+                                }`}
+                            style={{ width: `${Math.min(sub.storage_percent, 100)}%` }}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* ── Events section ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -160,8 +202,8 @@ export default function DashboardPage() {
                                             </td>
                                             <td className="px-4 py-4">
                                                 <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${event.is_active
-                                                        ? "bg-green-50 text-green-700 border border-green-200"
-                                                        : "bg-slate-100 text-slate-500 border border-slate-200"
+                                                    ? "bg-green-50 text-green-700 border border-green-200"
+                                                    : "bg-slate-100 text-slate-500 border border-slate-200"
                                                     }`}>
                                                     <span className={`w-1.5 h-1.5 rounded-full ${event.is_active ? "bg-green-500" : "bg-slate-400"}`} />
                                                     {event.is_active ? "Active" : "Inactive"}
@@ -220,8 +262,8 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
                                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${event.is_active
-                                                ? "bg-green-50 text-green-700 border border-green-200"
-                                                : "bg-slate-100 text-slate-500 border border-slate-200"
+                                            ? "bg-green-50 text-green-700 border border-green-200"
+                                            : "bg-slate-100 text-slate-500 border border-slate-200"
                                             }`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${event.is_active ? "bg-green-500" : "bg-slate-400"}`} />
                                             {event.is_active ? "Active" : "Inactive"}
