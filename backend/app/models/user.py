@@ -19,3 +19,8 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     events = relationship("Event", back_populates="owner", cascade="all, delete")
+    studio_name = Column(String(200), nullable=True)
+    studio_address = Column(Text, nullable=True)
+    studio_phone = Column(String(20), nullable=True)
+    studio_gstin = Column(String(20), nullable=True)
+    studio_upi_id = Column(String(100), nullable=True)  

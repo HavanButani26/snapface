@@ -5,6 +5,13 @@ import Link from "next/link";
 import { authService } from "@/lib/auth";
 import type { User } from "@/types";
 
+// ✅ Define OUTSIDE the component — stable on both server and client
+const navLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+    { href: "/events", label: "Events", icon: "📅" },
+    { href: "/billing", label: "Billing", icon: "💰" },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -19,7 +26,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser(authService.getUser());
     }, []);
 
-    // Close menu on route change
     useEffect(() => {
         setMenuOpen(false);
     }, [pathname]);
@@ -29,24 +35,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push("/login");
     }
 
-    const navLinks = [
-        { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-        { href: "/events", label: "Events", icon: "📅" },
-    ];
-
     return (
         <div className="min-h-screen bg-slate-50">
-            {/* ── Navbar ── */}
             <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
                 <div className="w-full px-4 sm:px-6">
                     <div className="flex items-center justify-between h-14">
 
-                        {/* Left — logo + desktop nav */}
                         <div className="flex items-center gap-6">
                             <Link href="/dashboard" className="text-lg font-bold text-blue-600 flex-shrink-0">
                                 SnapFace
                             </Link>
-                            {/* Desktop nav links */}
                             <div className="hidden sm:flex">
                                 {navLinks.map((link) => (
                                     <Link
@@ -63,9 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         </div>
 
-                        {/* Right — desktop user + mobile hamburger */}
                         <div className="flex items-center gap-3">
-                            {/* Desktop user info */}
                             <div className="hidden sm:flex items-center gap-3">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
@@ -81,7 +77,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 </button>
                             </div>
 
-                            {/* Mobile — avatar + hamburger */}
                             <div className="flex sm:hidden items-center gap-2">
                                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
                                     {user?.name?.charAt(0).toUpperCase()}
@@ -99,10 +94,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
 
-                {/* ── Mobile dropdown menu ── */}
                 {menuOpen && (
                     <div className="sm:hidden border-t border-slate-100 bg-white">
-                        {/* Nav links */}
                         <div className="px-4 py-2">
                             {navLinks.map((link) => (
                                 <Link
@@ -121,8 +114,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 </Link>
                             ))}
                         </div>
-
-                        {/* User info + logout */}
                         <div className="px-4 py-3 border-t border-slate-100">
                             <div className="flex items-center gap-3 mb-3 px-3">
                                 <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
@@ -144,7 +135,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
             </nav>
 
-            {/* ── Page content — full width ── */}
             <main className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto">
                 {children}
             </main>
