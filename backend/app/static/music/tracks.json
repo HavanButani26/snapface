@@ -1,0 +1,47 @@
+[
+    {
+        "id": "cinematic_1",
+        "name": "Cinematic Memories",
+        "mood": "emotional",
+        "bpm": 75,
+        "duration": 120,
+        "file": "cinematic_1.mp3",
+        "preview_url": "https://www.youtube.com/watch?v=aJOTlE1K90k"
+    },
+    {
+        "id": "upbeat_1",
+        "name": "Celebration Vibes",
+        "mood": "happy",
+        "bpm": 120,
+        "duration": 90,
+        "file": "upbeat_1.mp3",
+        "preview_url": "https://www.youtube.com/watch?v=ZbZSe6N_BXs"
+    },
+    {
+        "id": "romantic_1",
+        "name": "Wedding Bells",
+        "mood": "romantic",
+        "bpm": 85,
+        "duration": 110,
+        "file": "romantic_1.mp3",
+        "preview_url": "https://www.youtube.com/watch?v=450p7goxZqg"
+    },
+    {
+        "id": "energetic_1",
+        "name": "High Energy",
+        "mood": "energetic",
+        "bpm": 140,
+        "duration": 95,
+        "file": "energetic_1.mp3",
+        "preview_url": "https://www.youtube.com/watch?v=y6120QOlsfU"
+    },
+    {
+        "id": "peaceful_1",
+        "name": "Peaceful Moments",
+        "mood": "calm",
+        "bpm": 60,
+        "duration": 130,
+        "file": "peaceful_1.mp3",
+        "preview_url": "https://www.youtube.com/watch?v=lFcSrYw-ARY"
+    }
+]

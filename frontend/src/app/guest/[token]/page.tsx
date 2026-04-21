@@ -549,15 +549,15 @@ export default function GuestPage() {
                                             key={e}
                                             onClick={() => setResultEmotion(e)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition ${resultEmotion === e
-                                                    ? "bg-blue-600 text-white border-blue-600"
-                                                    : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                                                ? "bg-blue-600 text-white border-blue-600"
+                                                : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
                                                 }`}
                                         >
                                             <span>{emotionEmoji[e] || "🖼️"}</span>
                                             <span className="capitalize">{e}</span>
                                             <span className={`text-xs px-1.5 py-0.5 rounded-full ${resultEmotion === e
-                                                    ? "bg-white/20 text-white"
-                                                    : "bg-slate-100 text-slate-500"
+                                                ? "bg-white/20 text-white"
+                                                : "bg-slate-100 text-slate-500"
                                                 }`}>
                                                 {count}
                                             </span>
@@ -615,29 +615,50 @@ export default function GuestPage() {
                         </>
                     )}
 
-                    {/* Reel button */}
-                    {filteredMatched.length >= 2 && (
+                    {/* Reel button with settings */}
+                    {matched.length >= 2 && (
                         <button
                             onClick={async () => {
+                                const btn = document.getElementById("reel-btn") as HTMLButtonElement;
+                                if (btn) btn.disabled = true;
+                                btn.textContent = "🎬 Generating reel...";
                                 try {
                                     const { reelService } = await import("@/lib/reel");
                                     const blob = await reelService.generateGuestReel(
                                         token,
-                                        filteredMatched.map((m) => m.id)
+                                        {
+                                            photo_ids: filteredMatched.map((m) => m.id),
+                                            aspect_ratio: "9:16",
+                                            transition: "fade",
+                                            photo_duration: 2,
+                                            title_text: event?.name || "",
+                                            ken_burns: true,
+                                            show_intro: true,
+                                            show_outro: true,
+                                        },
+                                        (pct) => {
+                                            if (btn) btn.textContent = `🎬 Generating... ${pct}%`;
+                                        }
                                     );
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = `my_snapface_reel_${resultEmotion}.mp4`;
+                                    a.download = `my_snapface_reel.mp4`;
                                     a.click();
                                     URL.revokeObjectURL(url);
                                 } catch {
                                     alert("Reel generation failed. Please try again.");
+                                } finally {
+                                    if (btn) {
+                                        btn.disabled = false;
+                                        btn.textContent = "🎬 Generate my story reel";
+                                    }
                                 }
                             }}
+                            id="reel-btn"
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
                         >
-                            🎬 Generate reel from {resultEmotion === "all" ? "all" : resultEmotion} photos
+                            🎬 Generate my story reel
                         </button>
                     )}
 

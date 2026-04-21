@@ -173,11 +173,10 @@ export default function EventDetailPage() {
                             ⏳ Time capsule
                         </button>
                         <button
-                            onClick={handleGenerateReel}
-                            disabled={generatingReel}
-                            className="w-full border border-slate-200 hover:border-green-300 text-slate-600 hover:text-green-600 text-sm py-2.5 rounded-lg transition font-medium disabled:opacity-50"
+                            onClick={() => router.push(`/events/${id}/reel`)}
+                            className="w-full border border-slate-200 hover:border-violet-300 text-slate-600 hover:text-violet-600 text-sm py-2.5 rounded-lg transition font-medium"
                         >
-                            {generatingReel ? "⏳ Generating reel..." : "🎬 Generate story reel"}
+                            🎬 Reel studio
                         </button>
                     </div>
                 </div>
