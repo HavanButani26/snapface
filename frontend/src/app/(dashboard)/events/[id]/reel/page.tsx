@@ -54,13 +54,7 @@ export default function ReelStudioPage() {
     const [aspectRatio, setAspectRatio] = useState("9:16");
     const [transition, setTransition] = useState("fade");
     const [photoDuration, setPhotoDuration] = useState(2);
-    const [titleText, setTitleText] = useState("");
-    const [subtitleText, setSubtitleText] = useState("");
-    const [overlayText, setOverlayText] = useState("");
-    const [watermark, setWatermark] = useState("");
     const [kenBurns, setKenBurns] = useState(true);
-    const [showIntro, setShowIntro] = useState(true);
-    const [showOutro, setShowOutro] = useState(true);
     const [musicSource, setMusicSource] = useState<"none" | "preset" | "youtube">("none");
     const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
     const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -72,8 +66,6 @@ export default function ReelStudioPage() {
         ]).then(([ev, ph]) => {
             setEvent(ev);
             setPhotos(ph);
-            setTitleText(ev.name);
-            // Select all photos by default
             setSelectedIds(new Set(ph.map((p) => p.id)));
             setLoading(false);
         });
@@ -115,15 +107,15 @@ export default function ReelStudioPage() {
                 aspect_ratio: aspectRatio,
                 transition,
                 photo_duration: photoDuration,
-                title_text: titleText,
-                subtitle_text: subtitleText,
-                overlay_text: overlayText,
-                watermark,
+                title_text: "",
+                subtitle_text: "",
+                overlay_text: "",
+                watermark: "",
                 music_track_id: musicSource === "preset" ? selectedTrack : null,
                 music_url: musicSource === "youtube" ? youtubeUrl : null,
                 ken_burns: kenBurns,
-                show_intro: showIntro,
-                show_outro: showOutro,
+                show_intro: false,
+                show_outro: false,
                 fps: 24,
             };
 
@@ -268,8 +260,6 @@ export default function ReelStudioPage() {
                         <div className="space-y-2">
                             {[
                                 { label: "Ken Burns effect (pan/zoom)", value: kenBurns, setter: setKenBurns },
-                                { label: "Show intro slide", value: showIntro, setter: setShowIntro },
-                                { label: "Show outro slide", value: showOutro, setter: setShowOutro },
                             ].map((toggle) => (
                                 <div key={toggle.label} className="flex items-center justify-between">
                                     <span className="text-sm text-slate-600">{toggle.label}</span>
@@ -283,27 +273,6 @@ export default function ReelStudioPage() {
                                     </button>
                                 </div>
                             ))}
-                        </div>
-                    </div>
-
-                    {/* Text overlays */}
-                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                        <p className={labelClass}>Text & branding</p>
-                        <div>
-                            <label className="text-xs text-slate-500 mb-1 block">Event title (intro slide)</label>
-                            <input type="text" value={titleText} onChange={(e) => setTitleText(e.target.value)} className={inputClass} placeholder="e.g. Raj & Priya Wedding" />
-                        </div>
-                        <div>
-                            <label className="text-xs text-slate-500 mb-1 block">Subtitle (photographer name)</label>
-                            <input type="text" value={subtitleText} onChange={(e) => setSubtitleText(e.target.value)} className={inputClass} placeholder="Your studio name" />
-                        </div>
-                        <div>
-                            <label className="text-xs text-slate-500 mb-1 block">Overlay text (on each photo)</label>
-                            <input type="text" value={overlayText} onChange={(e) => setOverlayText(e.target.value)} className={inputClass} placeholder="e.g. 12 April 2026" />
-                        </div>
-                        <div>
-                            <label className="text-xs text-slate-500 mb-1 block">Watermark (bottom corner)</label>
-                            <input type="text" value={watermark} onChange={(e) => setWatermark(e.target.value)} className={inputClass} placeholder="© Your Studio" />
                         </div>
                     </div>
 
@@ -444,7 +413,7 @@ export default function ReelStudioPage() {
                             <div>
                                 <p className="text-slate-400">Duration</p>
                                 <p className="font-bold text-slate-900 text-lg">
-                                    ~{Math.round(selectedIds.size * photoDuration + (showIntro ? 2.5 : 0) + (showOutro ? 2.5 : 0))}s
+                                    ~{Math.round(selectedIds.size * photoDuration)}s
                                 </p>
                             </div>
                             <div>

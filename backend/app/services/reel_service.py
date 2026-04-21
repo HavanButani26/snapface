@@ -313,7 +313,7 @@ def generate_reel(
     ken_burns_directions = ["zoom_in", "zoom_out", "pan_right", "pan_left"]
 
     # ── Intro slide ──
-    if show_intro and title_text:
+    if show_outro and title_text:
         intro = make_title_frame(width, height, title_text, subtitle_text)
         intro_frames = int(fps * 2.5)
         for i in range(intro_frames):

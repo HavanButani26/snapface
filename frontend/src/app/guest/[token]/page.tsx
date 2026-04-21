@@ -169,6 +169,7 @@ export default function GuestPage() {
                 setProgress
             );
             setMatched(results);
+            sessionStorage.setItem(`matched_${token}`, JSON.stringify(results));
             setStep("results");
         } catch (err: any) {
             setMatchError(err.response?.data?.detail || "Something went wrong. Please try again.");
@@ -616,49 +617,15 @@ export default function GuestPage() {
                     )}
 
                     {/* Reel button with settings */}
-                    {matched.length >= 2 && (
+                    {filteredMatched.length >= 2 && (
                         <button
-                            onClick={async () => {
-                                const btn = document.getElementById("reel-btn") as HTMLButtonElement;
-                                if (btn) btn.disabled = true;
-                                btn.textContent = "🎬 Generating reel...";
-                                try {
-                                    const { reelService } = await import("@/lib/reel");
-                                    const blob = await reelService.generateGuestReel(
-                                        token,
-                                        {
-                                            photo_ids: filteredMatched.map((m) => m.id),
-                                            aspect_ratio: "9:16",
-                                            transition: "fade",
-                                            photo_duration: 2,
-                                            title_text: event?.name || "",
-                                            ken_burns: true,
-                                            show_intro: true,
-                                            show_outro: true,
-                                        },
-                                        (pct) => {
-                                            if (btn) btn.textContent = `🎬 Generating... ${pct}%`;
-                                        }
-                                    );
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `my_snapface_reel.mp4`;
-                                    a.click();
-                                    URL.revokeObjectURL(url);
-                                } catch {
-                                    alert("Reel generation failed. Please try again.");
-                                } finally {
-                                    if (btn) {
-                                        btn.disabled = false;
-                                        btn.textContent = "🎬 Generate my story reel";
-                                    }
-                                }
+                            onClick={() => {
+                                sessionStorage.setItem(`matched_${token}`, JSON.stringify(filteredMatched));
+                                window.location.href = `/guest/${token}/reel`;
                             }}
-                            id="reel-btn"
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl text-sm transition"
                         >
-                            🎬 Generate my story reel
+                            🎬 Create my story reel →
                         </button>
                     )}
 

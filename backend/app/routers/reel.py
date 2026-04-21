@@ -77,12 +77,6 @@ def generate_event_reel(
 
     # Auto-fill event branding if not set
     s = settings.model_dump()
-    if not s.get("title_text"):
-        s["title_text"] = event.name
-    if not s.get("subtitle_text"):
-        s["subtitle_text"] = current_user.studio_name or current_user.name
-    if not s.get("watermark"):
-        s["watermark"] = current_user.studio_name or current_user.name
 
     photo_urls = [p.url for p in photos]
 
