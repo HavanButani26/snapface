@@ -118,6 +118,9 @@ export default function GuestPage() {
     const [loadingEvent, setLoadingEvent] = useState(true);
     const [eventError, setEventError] = useState("");
     const [step, setStep] = useState<Step>("landing");
+    const [guestName, setGuestName] = useState("");
+    const [galleryUrl, setGalleryUrl] = useState<string | null>(null);
+    const [galleryToken, setGalleryToken] = useState<string | null>(null);
 
     // Password
     const [password, setPassword] = useState("");
@@ -162,17 +165,21 @@ export default function GuestPage() {
         setProgress(0);
         setMatchError("");
         try {
-            const results = await guestService.matchSelfie(
-                token, selfie,
+            const result = await guestService.matchSelfie(
+                token,
+                selfie,
+                guestName || undefined,
                 event?.is_password_protected ? password : undefined,
                 emotionFilter !== "all" ? emotionFilter : undefined,
                 setProgress
             );
-            setMatched(results);
-            sessionStorage.setItem(`matched_${token}`, JSON.stringify(results));
+            setMatched(result.matched);
+            setGalleryUrl(result.gallery_url);
+            setGalleryToken(result.gallery_token);
+            sessionStorage.setItem(`matched_${token}`, JSON.stringify(result.matched));
             setStep("results");
         } catch (err: any) {
-            setMatchError(err.response?.data?.detail || "Something went wrong. Please try again.");
+            setMatchError(err.response?.data?.detail || "Something went wrong.");
             setStep("selfie");
         }
     }
@@ -356,6 +363,20 @@ export default function GuestPage() {
                         </div>
                     </div>
 
+                    {/* Guest name — optional */}
+                    <div>
+                        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                            Your name <span className="text-xs text-slate-400 font-normal">(optional — for your gallery link)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={guestName}
+                            onChange={(e) => setGuestName(e.target.value)}
+                            placeholder="e.g. Raj Sharma"
+                            className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                    </div>
+
                     {/* Emotion filter */}
                     <div>
                         <p className="text-sm font-medium text-slate-700 mb-2">
@@ -425,7 +446,6 @@ export default function GuestPage() {
         );
     }
 
-    // ── Step: Results ──
     // ── Step: Results ──
     if (step === "results") {
         const filteredMatched = resultEmotion === "all"
@@ -565,6 +585,45 @@ export default function GuestPage() {
                                         </button>
                                     );
                                 })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Gallery share card */}
+                    {galleryUrl && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                            <div className="flex items-start gap-3">
+                                <div className="text-2xl flex-shrink-0">🔗</div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-blue-900 mb-0.5">
+                                        Your personal gallery is ready!
+                                    </p>
+                                    <p className="text-xs text-blue-600 mb-3">
+                                        Share this link — anyone can view your photos without uploading a selfie.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(galleryUrl);
+                                                alert("Gallery link copied!");
+                                            }}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition"
+                                        >
+                                            📋 Copy gallery link
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const msg = encodeURIComponent(
+                                                    `Hey! Here are my photos from ${event?.name} 📸\n\nView my gallery: ${galleryUrl}`
+                                                );
+                                                window.open(`https://wa.me/?text=${msg}`, "_blank");
+                                            }}
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2.5 rounded-xl transition"
+                                        >
+                                            📱 Share on WhatsApp
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
