@@ -43,9 +43,18 @@ def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
         return
 
     try:
+        # Face encodings
         encodings = face_service.extract_encodings(image_bytes)
         sharpness = face_service.compute_sharpness(image_bytes)
+
+        # Whole-image emotion (dominant face)
         emotion = emotion_service.detect_emotion(image_bytes)
+
+        # Per-face emotions — run on each face individually
+        per_face_emotions = []
+        if encodings:
+            print(f"Photo {photo_id}: detecting per-face emotions for {len(encodings)} faces")
+            per_face_emotions = emotion_service.detect_per_face_emotions(image_bytes, encodings)
 
         photo.face_encoding = encodings[0] if encodings else None
         photo.all_face_encodings = json_lib.dumps(encodings) if encodings else None
@@ -53,9 +62,11 @@ def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
         photo.sharpness_score = sharpness
         photo.dominant_emotion = emotion["dominant_emotion"]
         photo.emotion_scores = emotion["emotion_scores"]
+        photo.face_emotions = json_lib.dumps(per_face_emotions) if per_face_emotions else None
 
         db.commit()
-        print(f"Photo {photo_id}: {len(encodings)} faces encoded")
+        print(f"Photo {photo_id}: {len(encodings)} faces, emotions: {[f['emotion'] for f in per_face_emotions]}")
+
     except Exception as e:
         print(f"AI processing error for photo {photo_id}: {e}")
 # ---------- Routes ----------

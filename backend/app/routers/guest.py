@@ -126,15 +126,12 @@ async def match_selfie(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Block access if capsule is still locked
+    # Capsule check
     capsule = db.query(Capsule).filter(Capsule.event_id == event.id).first()
     if capsule and not capsule.is_unlocked:
         now = datetime.now(tz=capsule.unlock_at.tzinfo)
         if now < capsule.unlock_at:
-            raise HTTPException(
-                status_code=403,
-                detail="This album is locked in a time capsule. Come back after the unlock date!"
-            )
+            raise HTTPException(status_code=403, detail="This album is locked in a time capsule.")
         else:
             capsule.is_unlocked = True
             db.commit()
@@ -146,6 +143,7 @@ async def match_selfie(
         if not verify_password(password, event.album_password):
             raise HTTPException(status_code=401, detail="Incorrect password")
 
+    # Extract selfie encoding
     selfie_bytes = await selfie.read()
     selfie_encodings = face_service.extract_encodings(selfie_bytes)
 
@@ -159,25 +157,23 @@ async def match_selfie(
 
     selfie_encoding = selfie_encodings[0]
 
-    query = db.query(Photo).filter(
+    # Get all processed photos
+    photos = db.query(Photo).filter(
         Photo.event_id == event.id,
         Photo.face_count > 0,
-    )
+    ).all()
 
-    if emotion_filter and emotion_filter != "all":
-        query = query.filter(Photo.dominant_emotion == emotion_filter)
-
-    photos = query.all()
     print(f"Photos to match against: {len(photos)}")
 
     if not photos:
         raise HTTPException(
             status_code=404,
-            detail="No processed photos found yet. Please wait a moment and try again."
+            detail="No processed photos found yet. Please wait and try again."
         )
 
     matched = []
     for photo in photos:
+        # Get all face encodings
         if photo.all_face_encodings:
             try:
                 all_encodings = json.loads(photo.all_face_encodings)
@@ -188,23 +184,61 @@ async def match_selfie(
         else:
             continue
 
-        is_match, best_dist = face_service.match_face(
-            selfie_encoding=selfie_encoding,
-            stored_encodings=all_encodings,
-        )
+        # Get per-face emotions
+        per_face_emotions = []
+        if photo.face_emotions:
+            try:
+                per_face_emotions = json.loads(photo.face_emotions)
+            except Exception:
+                pass
 
-        print(f"Photo {photo.id}: distance={best_dist:.4f} match={is_match}")
+        # Find best matching face and its index
+        best_dist = 1.0
+        best_face_index = -1
+        for face_idx, enc in enumerate(all_encodings):
+            dist = face_service.cosine_distance(selfie_encoding, enc)
+            if dist < best_dist:
+                best_dist = dist
+                best_face_index = face_idx
+
+        is_match = best_dist < 0.55
+        print(f"Photo {photo.id}: best_dist={best_dist:.4f} face_idx={best_face_index} match={is_match}")
 
         if is_match:
+            # Get THIS person's specific emotion from per_face_emotions
+            person_emotion = None
+            person_emotion_scores = {}
+
+            if per_face_emotions and best_face_index >= 0:
+                # Find the emotion for the matched face index
+                for fe in per_face_emotions:
+                    if fe.get("index") == best_face_index:
+                        person_emotion = fe.get("emotion")
+                        person_emotion_scores = fe.get("scores", {})
+                        break
+
+            # Fallback to whole-image emotion if per-face not available
+            if not person_emotion:
+                person_emotion = photo.dominant_emotion
+
+            print(f"  → Person's emotion: {person_emotion} (face #{best_face_index})")
+
             matched.append({
                 "id": str(photo.id),
                 "url": photo.url,
                 "thumbnail_url": photo.thumbnail_url,
-                "dominant_emotion": photo.dominant_emotion,
+                "dominant_emotion": person_emotion,        # THIS person's emotion
+                "whole_photo_emotion": photo.dominant_emotion,  # whole photo emotion
                 "face_count": photo.face_count,
                 "distance": round(best_dist, 4),
             })
 
+    # Sort by confidence
     matched.sort(key=lambda x: x["distance"])
+
+    # Apply emotion filter on person's emotion (not whole photo)
+    if emotion_filter and emotion_filter != "all":
+        matched = [m for m in matched if m.get("dominant_emotion") == emotion_filter]
+
     print(f"Total matched: {len(matched)}")
     return matched

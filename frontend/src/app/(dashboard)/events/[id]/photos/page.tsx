@@ -5,31 +5,23 @@ import { photoService } from "@/lib/photos";
 import Link from "next/link";
 import type { Photo } from "@/types";
 
-const EMOTIONS = ["all", "happy", "sad", "angry", "surprised", "neutral", "fear", "disgust"];
-
-const emotionEmoji: Record<string, string> = {
-    all: "🖼️", happy: "😊", sad: "😢", angry: "😠",
-    surprised: "😲", neutral: "😐", fear: "😨", disgust: "🤢",
-};
-
 export default function PhotosPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [loading, setLoading] = useState(true);
-    const [emotion, setEmotion] = useState("all");
     const [deleting, setDeleting] = useState<string | null>(null);
     const [selected, setSelected] = useState<Photo | null>(null);
 
     useEffect(() => {
         setLoading(true);
         photoService
-            .getEventPhotos(id, emotion === "all" ? undefined : emotion)
+            .getEventPhotos(id)
             .then((data) => {
                 setPhotos(data);
                 setLoading(false);
             });
-    }, [id, emotion]);
+    }, [id]);
 
     async function handleDelete(photoId: string) {
         if (!confirm("Delete this photo?")) return;
@@ -63,26 +55,9 @@ export default function PhotosPage() {
                 </Link>
             </div>
 
-            {/* Emotion filter — our unique feature */}
-            <div className="flex gap-2 mb-6 flex-wrap">
-                {EMOTIONS.map((e) => (
-                    <button
-                        key={e}
-                        onClick={() => setEmotion(e)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition ${emotion === e
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600"
-                            }`}
-                    >
-                        <span>{emotionEmoji[e]}</span>
-                        <span className="capitalize">{e}</span>
-                    </button>
-                ))}
-            </div>
-
             {/* Grid */}
             {loading ? (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="aspect-square bg-slate-100 rounded-xl animate-pulse" />
                     ))}
@@ -90,12 +65,10 @@ export default function PhotosPage() {
             ) : photos.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-xl p-16 text-center">
                     <div className="text-4xl mb-3">📷</div>
-                    <p className="text-slate-500 text-sm">
-                        {emotion === "all" ? "No photos yet. Upload some!" : `No ${emotion} photos found.`}
-                    </p>
+                    <p className="text-slate-500 text-sm">No photos yet. Upload some!</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {photos.map((photo) => (
                         <div
                             key={photo.id}
@@ -107,16 +80,16 @@ export default function PhotosPage() {
                                 alt=""
                                 className="w-full h-full object-cover transition group-hover:scale-105"
                             />
-                            {/* Emotion badge */}
-                            {photo.dominant_emotion && (
-                                <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-xs px-2 py-0.5 rounded-full font-medium text-slate-700 border border-white">
-                                    {emotionEmoji[photo.dominant_emotion]} {photo.dominant_emotion}
-                                </div>
-                            )}
-                            {/* Face count */}
+                            {/* Face count badge */}
                             {photo.face_count > 0 && (
                                 <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                                     👤 {photo.face_count}
+                                </div>
+                            )}
+                            {/* AI processed indicator */}
+                            {photo.sharpness_score && (
+                                <div className="absolute top-2 left-2 bg-green-500/80 text-white text-xs px-1.5 py-0.5 rounded-full">
+                                    ✓ AI
                                 </div>
                             )}
                             {/* Delete on hover */}
@@ -154,19 +127,11 @@ export default function PhotosPage() {
                         />
                         <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3 text-sm text-slate-600">
-                                {selected.dominant_emotion && (
-                                    <span className="flex items-center gap-1">
-                                        {emotionEmoji[selected.dominant_emotion]}
-                                        <span className="capitalize">{selected.dominant_emotion}</span>
-                                    </span>
-                                )}
                                 {selected.face_count > 0 && (
                                     <span>👤 {selected.face_count} face{selected.face_count > 1 ? "s" : ""}</span>
                                 )}
                                 {selected.sharpness_score && (
-                                    <span>
-                                        Sharpness: {Math.round(selected.sharpness_score)}
-                                    </span>
+                                    <span>Sharpness: {Math.round(selected.sharpness_score)}</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -188,7 +153,8 @@ export default function PhotosPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
