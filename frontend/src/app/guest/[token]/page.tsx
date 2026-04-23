@@ -121,6 +121,7 @@ export default function GuestPage() {
     const [guestName, setGuestName] = useState("");
     const [galleryUrl, setGalleryUrl] = useState<string | null>(null);
     const [galleryToken, setGalleryToken] = useState<string | null>(null);
+    const [copiedGallery, setCopiedGallery] = useState(false);
 
     // Password
     const [password, setPassword] = useState("");
@@ -605,11 +606,12 @@ export default function GuestPage() {
                                         <button
                                             onClick={() => {
                                                 navigator.clipboard.writeText(galleryUrl);
-                                                alert("Gallery link copied!");
+                                                setCopiedGallery(true);
+                                                setTimeout(() => setCopiedGallery(false), 2000);
                                             }}
                                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition"
                                         >
-                                            📋 Copy gallery link
+                                            {copiedGallery ? "✓ Copied!" : "📋 Copy gallery link"}
                                         </button>
                                         <button
                                             onClick={() => {

@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { photoService } from "@/lib/photos";
 import Link from "next/link";
 import type { Photo } from "@/types";
+import { useModal } from "@/lib/modal";
 
 export default function PhotosPage() {
     const { id } = useParams<{ id: string }>();
@@ -12,6 +13,7 @@ export default function PhotosPage() {
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [selected, setSelected] = useState<Photo | null>(null);
+    const { confirm, toast } = useModal();
 
     useEffect(() => {
         setLoading(true);
@@ -24,11 +26,18 @@ export default function PhotosPage() {
     }, [id]);
 
     async function handleDelete(photoId: string) {
-        if (!confirm("Delete this photo?")) return;
+        const ok = await confirm({
+            title: "Delete photo?",
+            message: "This photo will be permanently removed from Cloudinary and cannot be recovered.",
+            confirmLabel: "Delete photo",
+            variant: "danger",
+        });
+        if (!ok) return;
         setDeleting(photoId);
         await photoService.delete(photoId);
         setPhotos((prev) => prev.filter((p) => p.id !== photoId));
         setDeleting(null);
+        toast("Photo deleted", "success");
     }
 
     return (

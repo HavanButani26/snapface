@@ -6,6 +6,7 @@ import { eventService } from "@/lib/events";
 import { authService } from "@/lib/auth";
 import type { Event } from "@/types";
 import { subscriptionService } from "@/lib/subscription";
+import { useModal } from "@/lib/modal";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -13,6 +14,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<ReturnType<typeof authService.getUser>>(null);
     const [sub, setSub] = useState<any>(null);
+    const { confirm, toast } = useModal();
 
     useEffect(() => {
         setUser(authService.getUser());
@@ -39,9 +41,17 @@ export default function DashboardPage() {
 
     async function handleDelete(id: string, e: React.MouseEvent) {
         e.stopPropagation();
-        if (!confirm("Delete this event?")) return;
+        const ok = await confirm({
+            title: "Delete event?",
+            message: "This will permanently delete the event and all its photos. This cannot be undone.",
+            confirmLabel: "Yes, delete",
+            cancelLabel: "Keep it",
+            variant: "danger",
+        });
+        if (!ok) return;
         await eventService.delete(id);
         setEvents((prev) => prev.filter((ev) => ev.id !== id));
+        toast("Event deleted successfully", "success");
     }
 
     const stats = [
@@ -111,7 +121,7 @@ export default function DashboardPage() {
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all ${sub.storage_percent >= 90 ? "bg-red-500" :
-                                    sub.storage_percent >= 70 ? "bg-amber-500" : "bg-blue-600"
+                                sub.storage_percent >= 70 ? "bg-amber-500" : "bg-blue-600"
                                 }`}
                             style={{ width: `${Math.min(sub.storage_percent, 100)}%` }}
                         />

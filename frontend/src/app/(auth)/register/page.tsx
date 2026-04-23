@@ -126,7 +126,7 @@ export default function RegisterPage() {
                                 onChange={(e) => setName(e.target.value)}
                                 required
                                 className={inputClass}
-                                placeholder="Havan Butani"
+                                placeholder="Enter your full name"
                             />
                         </div>
 
@@ -169,12 +169,12 @@ export default function RegisterPage() {
                                         <div
                                             key={i}
                                             className={`h-1 flex-1 rounded-full transition-all ${password.length >= i * 3
-                                                    ? password.length >= 10
-                                                        ? "bg-green-500"
-                                                        : password.length >= 6
-                                                            ? "bg-blue-500"
-                                                            : "bg-amber-400"
-                                                    : "bg-slate-100"
+                                                ? password.length >= 10
+                                                    ? "bg-green-500"
+                                                    : password.length >= 6
+                                                        ? "bg-blue-500"
+                                                        : "bg-amber-400"
+                                                : "bg-slate-100"
                                                 }`}
                                         />
                                     ))}

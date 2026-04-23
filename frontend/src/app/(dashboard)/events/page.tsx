@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { eventService } from "@/lib/events";
 import type { Event } from "@/types";
+import { useModal } from "@/lib/modal";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    const { confirm, toast } = useModal();
 
     useEffect(() => {
         eventService.list().then((data) => {
@@ -16,9 +18,17 @@ export default function EventsPage() {
     }, []);
 
     async function handleDelete(id: string) {
-        if (!confirm("Delete this event? This cannot be undone.")) return;
+        const ok = await confirm({
+            title: "Delete event?",
+            message: "This will permanently delete the event and all its photos. This cannot be undone.",
+            confirmLabel: "Yes, delete",
+            cancelLabel: "Keep it",
+            variant: "danger",
+        });
+        if (!ok) return;
         await eventService.delete(id);
         setEvents((prev) => prev.filter((e) => e.id !== id));
+        toast("Event deleted", "success");
     }
 
     return (
@@ -72,8 +82,8 @@ export default function EventsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${event.is_active
-                                        ? "bg-green-50 text-green-700 border border-green-200"
-                                        : "bg-slate-100 text-slate-500"
+                                    ? "bg-green-50 text-green-700 border border-green-200"
+                                    : "bg-slate-100 text-slate-500"
                                     }`}>
                                     {event.is_active ? "Active" : "Inactive"}
                                 </span>

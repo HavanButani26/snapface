@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { capsuleService, CapsuleData } from "@/lib/capsule";
 import Link from "next/link";
+import { useModal } from "@/lib/modal";
 
 function Countdown({ seconds }: { seconds: number }) {
     const [remaining, setRemaining] = useState(seconds);
@@ -17,6 +18,7 @@ function Countdown({ seconds }: { seconds: number }) {
     const hours = Math.floor((remaining % 86400) / 3600);
     const mins = Math.floor((remaining % 3600) / 60);
     const secs = remaining % 60;
+    const { confirm, toast } = useModal();
 
     return (
         <div className="grid grid-cols-4 gap-3 my-6">
@@ -43,6 +45,7 @@ export default function CapsulePage() {
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const { confirm, toast } = useModal();
 
     // Form state
     const [unlockDate, setUnlockDate] = useState("");
@@ -84,11 +87,18 @@ export default function CapsulePage() {
     }
 
     async function handleDelete() {
-        if (!confirm("Delete this time capsule? This cannot be undone.")) return;
+        const ok = await confirm({
+            title: "Delete time capsule?",
+            message: "The capsule will be removed. Photos will become immediately accessible to guests.",
+            confirmLabel: "Delete capsule",
+            variant: "danger",
+        });
+        if (!ok) return;
         setDeleting(true);
         await capsuleService.delete(id);
         setCapsule(null);
         setDeleting(false);
+        toast("Time capsule deleted", "success");
     }
 
     const inputClass =
@@ -120,8 +130,8 @@ export default function CapsulePage() {
                 /* ── Existing capsule ── */
                 <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
                     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${capsule.is_unlocked
-                            ? "bg-green-50 text-green-700 border border-green-200"
-                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        ? "bg-green-50 text-green-700 border border-green-200"
+                        : "bg-amber-50 text-amber-700 border border-amber-200"
                         }`}>
                         {capsule.is_unlocked ? "🔓 Unlocked" : "🔒 Locked"}
                     </div>

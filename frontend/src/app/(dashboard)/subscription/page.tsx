@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { subscriptionService, SubscriptionData, Plan } from "@/lib/subscription";
+import { useModal } from "@/lib/modal";
 
 type Cycle = "monthly" | "quarterly" | "yearly";
 
@@ -42,6 +43,7 @@ export default function SubscriptionPage() {
     const [loading, setLoading] = useState(true);
     const [subscribing, setSubscribing] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
+    const { confirm, alert, toast } = useModal();
 
     useEffect(() => {
         Promise.all([
@@ -54,31 +56,45 @@ export default function SubscriptionPage() {
         });
     }, []);
 
-    async function handleSubscribe(
-        planKey: string,
-        paymentMethod: "subscription" | "payment_link"
-    ) {
+    async function handleSubscribe(planKey: string, paymentMethod: string) {
         setSubscribing(`${planKey}-${paymentMethod}`);
         try {
             const res = await subscriptionService.subscribe(planKey, cycle, paymentMethod);
             window.open(res.payment_url, "_blank");
             setSub(res.subscription);
+            toast("Payment link opened! Complete payment to activate your plan.", "info");
         } catch (err: any) {
-            alert(err.response?.data?.detail || "Failed to create subscription");
+            await alert({
+                title: "Subscription failed",
+                message: err.response?.data?.detail || "Failed to create subscription. Please try again.",
+                variant: "error",
+            });
         } finally {
             setSubscribing(null);
         }
     }
 
     async function handleCancel() {
-        if (!confirm("Cancel subscription? You'll keep access until expiry.")) return;
+        const ok = await confirm({
+            title: "Cancel subscription?",
+            message: "You'll keep access until your current billing period ends. After that, you'll be downgraded to the Free plan.",
+            confirmLabel: "Yes, cancel",
+            cancelLabel: "Keep plan",
+            variant: "warning",
+        });
+        if (!ok) return;
         setCancelling(true);
         try {
             await subscriptionService.cancel();
             const updated = await subscriptionService.getMySubscription();
             setSub(updated);
+            toast("Subscription cancelled. Access continues until expiry.", "info");
         } catch (err: any) {
-            alert(err.response?.data?.detail || "Failed to cancel");
+            await alert({
+                title: "Cancellation failed",
+                message: err.response?.data?.detail || "Failed to cancel. Please try again.",
+                variant: "error",
+            });
         } finally {
             setCancelling(false);
         }
@@ -116,12 +132,12 @@ export default function SubscriptionPage() {
                                     {sub.plan_label} Plan
                                 </h2>
                                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${sub.status === "active"
-                                        ? "bg-green-50 text-green-700 border-green-200"
-                                        : sub.status === "payment_pending"
-                                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                                            : sub.status === "cancelled"
-                                                ? "bg-slate-100 text-slate-500 border-slate-200"
-                                                : "bg-red-50 text-red-700 border-red-200"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : sub.status === "payment_pending"
+                                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                                        : sub.status === "cancelled"
+                                            ? "bg-slate-100 text-slate-500 border-slate-200"
+                                            : "bg-red-50 text-red-700 border-red-200"
                                     }`}>
                                     {sub.status === "active" ? "● Active" :
                                         sub.status === "payment_pending" ? "⏳ Payment pending" :
@@ -211,8 +227,8 @@ export default function SubscriptionPage() {
                             key={c}
                             onClick={() => setCycle(c)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${cycle === c
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             {cycleLabels[c]}
