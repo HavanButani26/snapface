@@ -375,6 +375,7 @@ export default function GuestPage() {
                             onChange={(e) => setGuestName(e.target.value)}
                             placeholder="e.g. Raj Sharma"
                             className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                            autoFocus
                         />
                     </div>
 
