@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { guestService, GalleryData, MatchedPhoto } from "@/lib/guest";
 import JSZip from "jszip";
+import ReactionBar from "@/components/ReactionBar";
 
 const emotionEmoji: Record<string, string> = {
     happy: "😊", sad: "😢", angry: "😠",
@@ -152,8 +153,8 @@ export default function GalleryPage() {
                         <button
                             onClick={handleCopyLink}
                             className={`flex items-center justify-center gap-2 border text-xs font-semibold py-2.5 rounded-xl transition ${copied
-                                    ? "border-green-300 bg-green-50 text-green-700"
-                                    : "border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                                ? "border-green-300 bg-green-50 text-green-700"
+                                : "border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600"
                                 }`}
                         >
                             {copied ? "✓ Copied!" : "🔗 Copy link"}
@@ -177,25 +178,30 @@ export default function GalleryPage() {
                 {/* Photo grid */}
                 <div className="grid grid-cols-2 gap-3">
                     {gallery.photos.map((photo, idx) => (
-                        <div
-                            key={photo.id}
-                            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-slate-100"
-                            onClick={() => setLightbox(photo)}
-                        >
-                            <img
-                                src={photo.thumbnail_url || photo.url}
-                                alt=""
-                                className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                            {photo.dominant_emotion && (
-                                <div className="absolute top-2 left-2 bg-white/90 text-xs px-2 py-0.5 rounded-full font-medium text-slate-700">
-                                    {emotionEmoji[photo.dominant_emotion]}
+                        <div key={photo.id} className="flex flex-col">
+                            <div
+                                className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-slate-100"
+                                onClick={() => setLightbox(photo)}
+                            >
+                                <img
+                                    src={photo.thumbnail_url || photo.url}
+                                    alt=""
+                                    className="w-full h-full object-cover group-hover:scale-105 transition"
+                                />
+                                {photo.dominant_emotion && (
+                                    <div className="absolute top-2 left-2 bg-white/90 text-xs px-2 py-0.5 rounded-full font-medium text-slate-700">
+                                        {emotionEmoji[photo.dominant_emotion]}
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 bg-white text-slate-900 text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                                        View
+                                    </span>
                                 </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
-                                <span className="opacity-0 group-hover:opacity-100 bg-white text-slate-900 text-xs font-medium px-3 py-1.5 rounded-lg transition">
-                                    View
-                                </span>
+                            </div>
+                            {/* Reactions below each photo */}
+                            <div className="pt-2 px-1">
+                                <ReactionBar photoId={photo.id} galleryToken={token} compact />
                             </div>
                         </div>
                     ))}
@@ -226,7 +232,13 @@ export default function GalleryPage() {
                             alt=""
                             className="w-full max-h-[65vh] object-contain bg-slate-50"
                         />
-                        <div className="p-4 space-y-2">
+                        {/* Inside lightbox, after the image */}
+                        <div className="p-4 space-y-3">
+                            {/* Reactions */}
+                            <div>
+                                <p className="text-xs text-slate-400 mb-2 font-medium">React to this photo</p>
+                                <ReactionBar photoId={lightbox.id} galleryToken={token} />
+                            </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => {
@@ -245,11 +257,6 @@ export default function GalleryPage() {
                                     Close
                                 </button>
                             </div>
-                            {lightbox.dominant_emotion && (
-                                <p className="text-center text-xs text-slate-400">
-                                    {emotionEmoji[lightbox.dominant_emotion]} {lightbox.dominant_emotion}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </div>

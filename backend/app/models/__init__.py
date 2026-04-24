@@ -6,3 +6,4 @@ from app.models.invoice import Invoice
 from app.models.subscription import Subscription
 from app.models.guest_gallery import GuestGallery
 from app.models.event_analytics import EventAnalytic
+from app.models.photo_reaction import PhotoReaction

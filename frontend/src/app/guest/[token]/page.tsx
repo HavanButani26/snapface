@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { guestService, GuestEvent, MatchedPhoto } from "@/lib/guest";
+import ReactionBar from "@/components/ReactionBar";
 
 const emotionEmoji: Record<string, string> = {
     all: "🖼️", happy: "😊", sad: "😢", angry: "😠",
@@ -721,18 +722,20 @@ export default function GuestPage() {
                                 alt=""
                                 className="w-full max-h-[65vh] object-contain bg-slate-50"
                             />
-                            <div className="p-4 space-y-2">
+                            <div className="p-4 space-y-3">
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-2 font-medium">React to this photo</p>
+                                    <ReactionBar photoId={lightbox.id} galleryToken={galleryToken || undefined} />
+                                </div>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => {
-                                            const ext = lightbox.url.split(".").pop()?.split("?")[0] || "jpg";
-                                            const emotion = lightbox.dominant_emotion ? `_${lightbox.dominant_emotion}` : "";
-                                            downloadSingle(lightbox.url, `snapface${emotion}.${ext}`);
-                                        }}
+                                    <a
+                                        href={lightbox.url}
+                                        download
+                                        target="_blank"
                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-xl text-center transition"
                                     >
-                                        📥 Download photo
-                                    </button>
+                                        Download photo
+                                    </a>
                                     <button
                                         onClick={() => setLightbox(null)}
                                         className="px-5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:border-slate-300 transition"
@@ -740,11 +743,6 @@ export default function GuestPage() {
                                         Close
                                     </button>
                                 </div>
-                                {lightbox.dominant_emotion && (
-                                    <p className="text-center text-xs text-slate-400">
-                                        {emotionEmoji[lightbox.dominant_emotion]} {lightbox.dominant_emotion} photo
-                                    </p>
-                                )}
                             </div>
                         </div>
                     </div>

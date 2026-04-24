@@ -9,6 +9,7 @@ import {
 import { analyticsService, EventAnalyticsData } from "@/lib/analytics";
 import { eventService } from "@/lib/events";
 import type { Event } from "@/types";
+import api from "@/lib/api";
 
 const actionColors: Record<string, string> = {
     qr_scan: "bg-blue-100 text-blue-700",
@@ -69,16 +70,30 @@ export default function EventAnalyticsPage() {
     const [event, setEvent] = useState<Event | null>(null);
     const [data, setData] = useState<EventAnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [reactionData, setReactionData] = useState<any>(null);
 
     useEffect(() => {
-        Promise.all([
-            eventService.get(id),
-            analyticsService.getEventAnalytics(id),
-        ]).then(([ev, ana]) => {
-            setEvent(ev);
-            setData(ana);
-            setLoading(false);
-        });
+        const fetchData = async () => {
+            try {
+                const [ev, ana, react] = await Promise.all([
+                    eventService.get(id),
+                    analyticsService.getEventAnalytics(id),
+                    api.get(`/reactions/event/${id}`)
+                        .then(r => r.data)
+                        .catch(() => null),
+                ]);
+
+                setEvent(ev);
+                setData(ana);
+                setReactionData(react);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, [id]);
 
     if (loading) return (
@@ -208,6 +223,73 @@ export default function EventAnalyticsPage() {
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {/* Reactions overview */}
+            {reactionData && reactionData.total_reactions > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-sm font-semibold text-slate-900">Photo reactions</h2>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                {reactionData.total_reactions} total reactions from guests
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Overall reaction counts */}
+                    <div className="flex gap-3 flex-wrap mb-5">
+                        {Object.entries(reactionData.overall as Record<string, number>)
+                            .sort(([, a], [, b]) => b - a)
+                            .map(([reaction, count]) => (
+                                <div
+                                    key={reaction}
+                                    className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2"
+                                >
+                                    <span className="text-xl">{reaction}</span>
+                                    <span className="text-sm font-bold text-slate-900">{count}</span>
+                                </div>
+                            ))}
+                    </div>
+
+                    {/* Top reacted photos */}
+                    {reactionData.top_reacted_photos.length > 0 && (
+                        <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                                Most reacted photos
+                            </p>
+                            <div className="space-y-3">
+                                {reactionData.top_reacted_photos.slice(0, 5).map((photo: any, idx: number) => (
+                                    <div key={photo.photo_id} className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-slate-400 w-4">#{idx + 1}</span>
+                                        <img
+                                            src={photo.thumbnail_url || photo.url}
+                                            alt=""
+                                            className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-slate-100"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex gap-1.5 flex-wrap">
+                                                {Object.entries(photo.reactions as Record<string, number>)
+                                                    .sort(([, a], [, b]) => b - a)
+                                                    .map(([reaction, count]) => (
+                                                        <span
+                                                            key={reaction}
+                                                            className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-full px-2 py-0.5 text-xs"
+                                                        >
+                                                            {reaction} <span className="font-semibold">{count}</span>
+                                                        </span>
+                                                    ))}
+                                            </div>
+                                            <p className="text-xs text-slate-400 mt-1">
+                                                {photo.total} reaction{photo.total !== 1 ? "s" : ""} total
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Bottom row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
