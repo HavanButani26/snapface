@@ -29,4 +29,23 @@ export const photoService = {
     async delete(photoId: string): Promise<void> {
         await api.delete(`/photos/${photoId}`);
     },
+
+    async downloadAll(eventId: string, eventName: string): Promise<void> {
+        const token = localStorage.getItem("token");
+        const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+        const res = await fetch(`${BASE}/photos/download-all/${eventId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Download failed");
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${eventName.replace(/\s/g, "_")}_photos.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
 };

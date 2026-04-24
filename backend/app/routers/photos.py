@@ -10,6 +10,10 @@ from app.models.user import User
 from app.services import cloudinary_service, face_service, emotion_service
 import json
 import os
+from fastapi.responses import StreamingResponse
+import zipfile
+import urllib.request
+import io
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -279,3 +283,46 @@ def delete_photo(
     cloudinary_service.delete_photo(photo.cloudinary_public_id)
     db.delete(photo)
     db.commit()
+
+@router.get("/download-all/{event_id}")
+def download_all_photos(
+    event_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download all photos of an event as a ZIP file."""
+    event = db.query(Event).filter(
+        Event.id == event_id,
+        Event.owner_id == current_user.id,
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    photos = db.query(Photo).filter(Photo.event_id == event_id).all()
+    if not photos:
+        raise HTTPException(status_code=404, detail="No photos found in this event")
+
+    def generate_zip():
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for idx, photo in enumerate(photos):
+                try:
+                    img_data = urllib.request.urlopen(photo.url).read()
+                    ext = photo.url.split(".")[-1].split("?")[0] or "jpg"
+                    emotion = f"_{photo.dominant_emotion}" if photo.dominant_emotion else ""
+                    filename = f"photo_{idx + 1:03d}{emotion}.{ext}"
+                    zip_file.writestr(filename, img_data)
+                except Exception as e:
+                    print(f"Failed to add photo {photo.id} to ZIP: {e}")
+        zip_buffer.seek(0)
+        yield zip_buffer.read()
+
+    safe_name = event.name[:30].replace(" ", "_").replace("/", "_")
+
+    return StreamingResponse(
+        generate_zip(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_photos.zip"'
+        }
+    )
