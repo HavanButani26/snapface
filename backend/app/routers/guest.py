@@ -13,6 +13,7 @@ from datetime import datetime
 import json
 import uuid
 import secrets
+from app.models.event_analytics import EventAnalytic
 
 router = APIRouter(prefix="/guest", tags=["guest"])
 
@@ -52,6 +53,21 @@ class GalleryResponse(BaseModel):
     created_at: str
     photos: list[MatchedPhotoResponse]
 
+def track(db, event_id, action, photo_id=None, guest_name=None, gallery_token=None, extra_data=None):
+    try:
+        log = EventAnalytic(
+            event_id=event_id,
+            action=action,
+            photo_id=photo_id,
+            guest_name=guest_name,
+            gallery_token=gallery_token,
+            extra_data=json.dumps(extra_data) if extra_data else None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        print(f"Analytics tracking error: {e}")
+
 
 @router.get("/event/{qr_token}", response_model=GuestEventResponse)
 def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
@@ -83,6 +99,7 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
             diff = capsule.unlock_at - now
             capsule_seconds_remaining = max(0, int(diff.total_seconds()))
 
+    track(db, event.id, "qr_scan")
     return GuestEventResponse(
         id=str(event.id),
         name=event.name,
@@ -223,6 +240,13 @@ async def match_selfie(
 
     if emotion_filter and emotion_filter != "all":
         matched = [m for m in matched if m.get("dominant_emotion") == emotion_filter]
+    
+    if matched:
+        track(db, event.id, "selfie_match",
+          guest_name=guest_name,
+          extra_data={"matched_count": len(matched)})
+    else:
+        track(db, event.id, "no_match", guest_name=guest_name)
 
     # ── Create guest gallery ──
     gallery_token = None
@@ -262,6 +286,10 @@ def get_gallery(gallery_token: str, db: Session = Depends(get_db)):
 
     # Increment view count
     gallery.view_count += 1
+    track(db, gallery.event_id, "gallery_view",
+      gallery_token=gallery_token,
+      guest_name=gallery.guest_name)
+
     db.commit()
 
     # Get photos

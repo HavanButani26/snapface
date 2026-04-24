@@ -178,6 +178,12 @@ export default function EventDetailPage() {
                         >
                             🎬 Reel studio
                         </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/analytics`)}
+                            className="w-full border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            📊 View analytics
+                        </button>
                     </div>
                 </div>
             </div>
