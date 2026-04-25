@@ -27,5 +27,7 @@ export interface Photo {
     emotion_scores: string | null;
     sharpness_score: number | null;
     face_count: number;
+    scene_category: string | null;
+    scene_confidence: number | null;
     uploaded_at: string;
 }

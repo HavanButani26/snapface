@@ -15,21 +15,17 @@ class Photo(Base):
     url = Column(Text, nullable=False)
     thumbnail_url = Column(Text, nullable=True)
 
-    # First face encoding (for backwards compat)
     face_encoding = Column(ARRAY(Float), nullable=True)
-
-    # ALL face encodings — JSON list of 512-dim lists
     all_face_encodings = Column(Text, nullable=True)
-
     face_count = Column(Integer, default=0)
 
-    # Whole-photo emotion (dominant face) — kept for backwards compat
     dominant_emotion = Column(String(50), nullable=True)
     emotion_scores = Column(Text, nullable=True)
-
-    # Per-face emotions — JSON list of {encoding_index, emotion, scores, bbox}
-    # e.g. [{"index": 0, "emotion": "happy", "scores": {...}}, {"index": 1, "emotion": "neutral", ...}]
     face_emotions = Column(Text, nullable=True)
+
+    # Scene detection
+    scene_category = Column(String(50), nullable=True)
+    scene_confidence = Column(Float, nullable=True)
 
     sharpness_score = Column(Float, nullable=True)
     is_watermarked = Column(Boolean, default=False)

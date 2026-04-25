@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 import zipfile
 import urllib.request
 import io
+from app.services import cloudinary_service, face_service, emotion_service, scene_service
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -50,15 +51,14 @@ def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
         # Face encodings
         encodings = face_service.extract_encodings(image_bytes)
         sharpness = face_service.compute_sharpness(image_bytes)
-
-        # Whole-image emotion (dominant face)
         emotion = emotion_service.detect_emotion(image_bytes)
 
-        # Per-face emotions — run on each face individually
         per_face_emotions = []
         if encodings:
-            print(f"Photo {photo_id}: detecting per-face emotions for {len(encodings)} faces")
             per_face_emotions = emotion_service.detect_per_face_emotions(image_bytes, encodings)
+
+        # Scene detection
+        scene = scene_service.detect_scene(image_bytes, face_count=len(encodings))
 
         photo.face_encoding = encodings[0] if encodings else None
         photo.all_face_encodings = json_lib.dumps(encodings) if encodings else None
@@ -67,9 +67,11 @@ def process_photo_ai(photo_id: str, image_bytes: bytes, db: Session):
         photo.dominant_emotion = emotion["dominant_emotion"]
         photo.emotion_scores = emotion["emotion_scores"]
         photo.face_emotions = json_lib.dumps(per_face_emotions) if per_face_emotions else None
+        photo.scene_category = scene["scene_category"]
+        photo.scene_confidence = scene["scene_confidence"]
 
         db.commit()
-        print(f"Photo {photo_id}: {len(encodings)} faces, emotions: {[f['emotion'] for f in per_face_emotions]}")
+        print(f"Photo {photo_id}: {len(encodings)} faces | emotion={emotion['dominant_emotion']} | scene={scene['scene_category']}")
 
     except Exception as e:
         print(f"AI processing error for photo {photo_id}: {e}")
@@ -232,7 +234,7 @@ async def upload_photos(
 @router.get("/event/{event_id}", response_model=list[PhotoResponse])
 def get_event_photos(
     event_id: str,
-    emotion: Optional[str] = None,
+    scene: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -245,26 +247,27 @@ def get_event_photos(
 
     query = db.query(Photo).filter(Photo.event_id == event_id)
 
-    # Emotion filter (our unique feature)
-    if emotion and emotion != "all":
-        query = query.filter(Photo.dominant_emotion == emotion)
+    if scene and scene != "all":
+        query = query.filter(Photo.scene_category == scene)
 
     photos = query.order_by(Photo.uploaded_at.desc()).all()
 
     return [
-        PhotoResponse(
-            id=str(p.id),
-            event_id=str(p.event_id),
-            url=p.url,
-            thumbnail_url=p.thumbnail_url,
-            dominant_emotion=p.dominant_emotion,
-            emotion_scores=p.emotion_scores,
-            sharpness_score=p.sharpness_score,
-            face_count=p.face_count,
-            uploaded_at=str(p.uploaded_at),
-        )
-        for p in photos
-    ]
+    PhotoResponse(
+        id=str(p.id),
+        event_id=str(p.event_id),
+        url=p.url,
+        thumbnail_url=p.thumbnail_url,
+        dominant_emotion=p.dominant_emotion,
+        emotion_scores=p.emotion_scores,
+        sharpness_score=p.sharpness_score,
+        face_count=p.face_count or 0,
+        scene_category=p.scene_category,
+        scene_confidence=p.scene_confidence,
+        uploaded_at=str(p.uploaded_at),
+    )
+    for p in photos
+]
 
 
 @router.delete("/{photo_id}", status_code=204)

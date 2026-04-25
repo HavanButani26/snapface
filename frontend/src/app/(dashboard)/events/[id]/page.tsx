@@ -184,6 +184,12 @@ export default function EventDetailPage() {
                         >
                             📊 View analytics
                         </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/smart-album`)}
+                            className="w-full border border-slate-200 hover:border-emerald-300 text-slate-600 hover:text-emerald-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            🤖 Smart album
+                        </button>
                     </div>
                 </div>
             </div>

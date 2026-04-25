@@ -20,8 +20,12 @@ export const photoService = {
         return res.data;
     },
 
-    async getEventPhotos(eventId: string, emotion?: string): Promise<Photo[]> {
-        const params = emotion && emotion !== "all" ? { emotion } : {};
+    async getEventPhotos(
+        eventId: string,
+        scene?: string
+    ): Promise<Photo[]> {
+        const params: any = {};
+        if (scene && scene !== "all") params.scene = scene;
         const res = await api.get(`/photos/event/${eventId}`, { params });
         return res.data;
     },
