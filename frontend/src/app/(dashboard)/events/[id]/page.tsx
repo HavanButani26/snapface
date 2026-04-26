@@ -190,6 +190,12 @@ export default function EventDetailPage() {
                         >
                             🤖 Smart album
                         </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/duplicates`)}
+                            className="w-full border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            🔍 Duplicate detector
+                        </button>
                     </div>
                 </div>
             </div>

@@ -88,14 +88,14 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const toast = useCallback((message: string, variant: ToastItem["variant"] = "info") => {
-        const id = toastCounter + 1;
-        setToastCounter(id);
+        const id = Date.now() + Math.random();
+
         setToasts((prev) => [...prev, { id, message, variant }]);
+
         setTimeout(() => {
             setToasts((prev) => prev.filter((t) => t.id !== id));
         }, 3500);
-    }, [toastCounter]);
-
+    }, []);
     function handleConfirm(value: boolean) {
         confirmState?.resolve(value);
         setConfirmState(null);
@@ -122,15 +122,15 @@ export function ModalProvider({ children }: { children: ReactNode }) {
                     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
                         {/* Top accent */}
                         <div className={`h-1 w-full ${confirmState.options.variant === "danger" ? "bg-red-500" :
-                                confirmState.options.variant === "warning" ? "bg-amber-500" :
-                                    "bg-blue-500"
+                            confirmState.options.variant === "warning" ? "bg-amber-500" :
+                                "bg-blue-500"
                             }`} />
 
                         <div className="p-6">
                             {/* Icon */}
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-4 ${confirmState.options.variant === "danger" ? "bg-red-100" :
-                                    confirmState.options.variant === "warning" ? "bg-amber-100" :
-                                        "bg-blue-100"
+                                confirmState.options.variant === "warning" ? "bg-amber-100" :
+                                    "bg-blue-100"
                                 }`}>
                                 {confirmState.options.variant === "danger" ? "🗑️" :
                                     confirmState.options.variant === "warning" ? "⚠️" : "❓"}
@@ -153,8 +153,8 @@ export function ModalProvider({ children }: { children: ReactNode }) {
                                 <button
                                     onClick={() => handleConfirm(true)}
                                     className={`flex-1 text-white font-semibold py-2.5 rounded-xl text-sm transition ${confirmState.options.variant === "danger" ? "bg-red-600 hover:bg-red-700" :
-                                            confirmState.options.variant === "warning" ? "bg-amber-500 hover:bg-amber-600" :
-                                                "bg-blue-600 hover:bg-blue-700"
+                                        confirmState.options.variant === "warning" ? "bg-amber-500 hover:bg-amber-600" :
+                                            "bg-blue-600 hover:bg-blue-700"
                                         }`}
                                 >
                                     {confirmState.options.confirmLabel || "Confirm"}
@@ -174,9 +174,9 @@ export function ModalProvider({ children }: { children: ReactNode }) {
                     />
                     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
                         <div className={`h-1 w-full ${alertState.options.variant === "success" ? "bg-green-500" :
-                                alertState.options.variant === "error" ? "bg-red-500" :
-                                    alertState.options.variant === "warning" ? "bg-amber-500" :
-                                        "bg-blue-500"
+                            alertState.options.variant === "error" ? "bg-red-500" :
+                                alertState.options.variant === "warning" ? "bg-amber-500" :
+                                    "bg-blue-500"
                             }`} />
 
                         <div className="p-6">
