@@ -16,6 +16,12 @@ export interface GuestEvent {
     capsule_unlock_at: string | null;
     capsule_message: string | null;
     capsule_seconds_remaining: number;
+    // Countdown
+    has_countdown: boolean;
+    countdown_is_active: boolean;
+    photos_ready_at: string | null;
+    countdown_seconds_remaining: number;
+    countdown_message: string | null;
 }
 
 export interface MatchedPhoto {
@@ -85,6 +91,18 @@ export const guestService = {
 
     async getGallery(galleryToken: string): Promise<GalleryData> {
         const res = await guestApi.get(`/guest/gallery/${galleryToken}`);
+        return res.data;
+    },
+
+    async registerForNotification(
+        eventId: string,
+        email: string,
+        name?: string
+    ): Promise<{ message: string }> {
+        const res = await guestApi.post(`/events/${eventId}/countdown/register`, {
+            email,
+            name,
+        });
         return res.data;
     },
 };

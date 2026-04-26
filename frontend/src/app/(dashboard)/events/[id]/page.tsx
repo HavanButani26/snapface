@@ -196,6 +196,12 @@ export default function EventDetailPage() {
                         >
                             🔍 Duplicate detector
                         </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/countdown`)}
+                            className="w-full border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            ⏰ Event countdown
+                        </button>
                     </div>
                 </div>
             </div>

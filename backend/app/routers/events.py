@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -13,6 +13,7 @@ import qrcode
 import io
 import base64
 import os
+import json
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -45,6 +46,14 @@ class EventUpdate(BaseModel):
     description: Optional[str] = None
     event_date: Optional[datetime] = None
     is_active: Optional[bool] = None
+
+class EventCountdownUpdate(BaseModel):
+    photos_ready_at: Optional[datetime] = None
+    countdown_message: Optional[str] = None
+
+class CountdownRegisterRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
 
 
 # ---------- Helpers ----------
@@ -189,3 +198,130 @@ def get_event_qr(
         "guest_url": guest_url,
         "qr_token": event.qr_token,
     }
+
+@router.patch("/{event_id}/countdown", response_model=EventResponse)
+def update_countdown(
+    event_id: str,
+    payload: EventCountdownUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Set or update the photos-ready countdown for an event."""
+    event = db.query(Event).filter(
+        Event.id == event_id,
+        Event.owner_id == current_user.id,
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if payload.photos_ready_at is not None:
+        event.photos_ready_at = payload.photos_ready_at
+    if payload.countdown_message is not None:
+        event.countdown_message = payload.countdown_message
+
+    db.commit()
+    db.refresh(event)
+    return build_event_response(event, db)
+
+
+@router.post("/{event_id}/countdown/register")
+def register_for_notification(
+    event_id: str,
+    payload: CountdownRegisterRequest,
+    db: Session = Depends(get_db),
+):
+    """Public — guest registers email to be notified when photos are ready."""
+    event = db.query(Event).filter(
+        Event.qr_token == event_id,
+        Event.is_active == True,
+    ).first()
+
+    # Try by ID if not found by token
+    if not event:
+        event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Add email to notify list
+    current_emails = []
+    if event.notify_emails:
+        try:
+            current_emails = json.loads(event.notify_emails)
+        except Exception:
+            current_emails = []
+
+    entry = {"email": payload.email, "name": payload.name or "", "registered_at": datetime.now().isoformat()}
+
+    # Avoid duplicates
+    if not any(e["email"] == payload.email for e in current_emails):
+        current_emails.append(entry)
+        event.notify_emails = json.dumps(current_emails)
+        db.commit()
+
+    return {"message": "You'll be notified when photos are ready!", "email": payload.email}
+
+
+@router.post("/{event_id}/countdown/notify-all")
+def notify_registered_guests(
+    event_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Send notification emails to all registered guests."""
+    from app.services.email_service import send_photos_ready_email
+
+    event = db.query(Event).filter(
+        Event.id == event_id,
+        Event.owner_id == current_user.id,
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not event.notify_emails:
+        raise HTTPException(status_code=400, detail="No registered guests")
+
+    try:
+        emails = json.loads(event.notify_emails)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid email list")
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    guest_url = f"{frontend_url}/guest/{event.qr_token}"
+
+    for entry in emails:
+        background_tasks.add_task(
+            send_photos_ready_email,
+            entry["email"],
+            entry.get("name") or "Guest",
+            event.name,
+            current_user.studio_name or current_user.name,
+            guest_url,
+        )
+
+    return {"message": f"Notifying {len(emails)} registered guests", "count": len(emails)}
+
+
+@router.get("/{event_id}/countdown/registrations")
+def get_registrations(
+    event_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all registered guest emails for an event."""
+    event = db.query(Event).filter(
+        Event.id == event_id,
+        Event.owner_id == current_user.id,
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    emails = []
+    if event.notify_emails:
+        try:
+            emails = json.loads(event.notify_emails)
+        except Exception:
+            pass
+
+    return {"count": len(emails), "registrations": emails}

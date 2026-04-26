@@ -9,7 +9,7 @@ const emotionEmoji: Record<string, string> = {
     surprised: "😲", neutral: "😐", fear: "😨", disgust: "🤢",
 };
 
-type Step = "landing" | "password" | "capsule" | "selfie" | "matching" | "results";
+type Step = "landing" | "password" | "capsule" | "countdown" | "selfie" | "matching" | "results";
 
 // ── Countdown component ──
 function Countdown({ seconds: initialSeconds, onUnlock }: { seconds: number; onUnlock: () => void }) {
@@ -112,6 +112,164 @@ function PasswordStep({
     );
 }
 
+function CountdownStep({
+    event,
+    onUnlock,
+    token,
+}: {
+    event: GuestEvent;
+    onUnlock: () => void;
+    token: string;
+}) {
+    const [remaining, setRemaining] = useState(event.countdown_seconds_remaining);
+    const [email, setEmail] = useState("");
+    const [name, setName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [done, setDone] = useState(false);
+
+    useEffect(() => {
+        if (remaining <= 0) { onUnlock(); return; }
+        const timer = setInterval(() => {
+            setRemaining((s) => {
+                if (s <= 1) { onUnlock(); return 0; }
+                return s - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const days = Math.floor(remaining / 86400);
+    const hours = Math.floor((remaining % 86400) / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    const secs = remaining % 60;
+
+    async function handleRegister(e: React.FormEvent) {
+        e.preventDefault();
+        if (!email) return;
+        setLoading(true);
+        try {
+            await guestService.registerForNotification(event.id, email, name);
+            setDone(true);
+        } catch {
+            setDone(true); // still show success to avoid leaking info
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="space-y-5">
+            {/* Main countdown card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">
+                    📸
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Photos coming soon!</h2>
+                <p className="text-slate-500 text-sm mb-1">
+                    {event.photographer_name} is still processing your photos.
+                </p>
+                <p className="text-slate-500 text-sm mb-6">
+                    They'll be ready in:
+                </p>
+
+                {/* Countdown */}
+                <div className="grid grid-cols-4 gap-2 mb-6">
+                    {[
+                        { val: days, label: "Days" },
+                        { val: hours, label: "Hours" },
+                        { val: mins, label: "Mins" },
+                        { val: secs, label: "Secs" },
+                    ].map((u) => (
+                        <div key={u.label} className="bg-blue-600 rounded-2xl p-3 text-white text-center">
+                            <div className="text-2xl font-bold tabular-nums">
+                                {String(u.val).padStart(2, "0")}
+                            </div>
+                            <div className="text-xs text-blue-200 mt-0.5">{u.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Ready date */}
+                {event.photos_ready_at && (
+                    <p className="text-xs text-slate-400 mb-4">
+                        Expected ready by:{" "}
+                        <span className="font-medium text-slate-600">
+                            {new Date(event.photos_ready_at).toLocaleString("en-IN", {
+                                day: "numeric", month: "long", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                            })}
+                        </span>
+                    </p>
+                )}
+
+                {/* Photographer message */}
+                {event.countdown_message && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left">
+                        <p className="text-xs text-slate-400 font-semibold mb-1 uppercase tracking-wide">
+                            Message from {event.photographer_name}
+                        </p>
+                        <p className="text-sm text-slate-700 italic leading-relaxed">
+                            "{event.countdown_message}"
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Email registration card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                {done ? (
+                    <div className="text-center py-4">
+                        <div className="text-4xl mb-3">✅</div>
+                        <p className="font-semibold text-slate-900 mb-1">You're registered!</p>
+                        <p className="text-sm text-slate-500">
+                            We'll email you at <span className="font-medium text-blue-600">{email}</span> when photos are ready.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <h3 className="font-semibold text-slate-900 mb-1">Get notified when ready</h3>
+                        <p className="text-sm text-slate-500 mb-4">
+                            Enter your email and we'll notify you the moment your photos are available.
+                        </p>
+                        <form onSubmit={handleRegister} className="space-y-3">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Your name (optional)"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                            />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                placeholder="your@email.com"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading || !email}
+                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-3 rounded-xl text-sm transition"
+                            >
+                                {loading ? "Registering..." : "🔔 Notify me when ready"}
+                            </button>
+                        </form>
+                    </>
+                )}
+            </div>
+
+            {/* Event info */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                <p className="text-xs text-slate-400">
+                    📷 {event.total_photos} photos uploaded so far ·{" "}
+                    More being processed by {event.photographer_name}
+                </p>
+            </div>
+        </div>
+    );
+}
+
 export default function GuestPage() {
     const { token } = useParams<{ token: string }>();
     const [resultEmotion, setResultEmotion] = useState("all");
@@ -139,15 +297,21 @@ export default function GuestPage() {
     // Results
     const [matched, setMatched] = useState<MatchedPhoto[]>([]);
     const [lightbox, setLightbox] = useState<MatchedPhoto | null>(null);
+    const [regEmail, setRegEmail] = useState("");
+    const [regName, setRegName] = useState("");
+    const [regLoading, setRegLoading] = useState(false);
+    const [regDone, setRegDone] = useState(false);
 
     useEffect(() => {
-        guestService
-            .getEvent(token)
+        guestService.getEvent(token)
             .then((data) => {
                 setEvent(data);
                 setLoadingEvent(false);
-                // Determine initial step
-                if (data.has_capsule && data.capsule_is_locked) {
+
+                // Priority: countdown > capsule > password > selfie
+                if (data.has_countdown && data.countdown_is_active) {
+                    setStep("countdown");
+                } else if (data.has_capsule && data.capsule_is_locked) {
                     setStep("capsule");
                 } else if (data.is_password_protected) {
                     setStep("password");
@@ -289,6 +453,22 @@ export default function GuestPage() {
                         </p>
                     </div>
                 </div>
+            </Wrapper>
+        );
+    }
+
+    // ── Step: Countdown ──
+    if (step === "countdown" && event) {
+        return (
+            <Wrapper>
+                <CountdownStep
+                    event={event}
+                    onUnlock={() => {
+                        if (event.is_password_protected) setStep("password");
+                        else setStep("selfie");
+                    }}
+                    token={token}
+                />
             </Wrapper>
         );
     }

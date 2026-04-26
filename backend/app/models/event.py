@@ -13,8 +13,14 @@ class Event(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     event_date = Column(DateTime(timezone=True), nullable=True)
+
+    # Countdown feature
+    photos_ready_at = Column(DateTime(timezone=True), nullable=True)
+    countdown_message = Column(Text, nullable=True)
+    notify_emails = Column(Text, nullable=True)  # JSON list of registered emails
+
     is_password_protected = Column(Boolean, default=False)
-    album_password = Column(String(255), nullable=True)   # hashed
+    album_password = Column(String(255), nullable=True)
     qr_token = Column(String(100), unique=True, nullable=False, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

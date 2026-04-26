@@ -187,3 +187,45 @@ def send_subscription_expiry_warning(
     except Exception as e:
         print(f"Expiry warning email error: {e}")
         return False
+    
+def send_photos_ready_email(
+    to_email: str,
+    guest_name: str,
+    event_name: str,
+    photographer_name: str,
+    guest_url: str,
+):
+    try:
+        params = {
+            "from": f"SnapFace <{FROM_EMAIL}>",
+            "to": [to_email],
+            "subject": f"📸 Your photos from {event_name} are ready!",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #2563EB; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                    <div style="font-size: 48px;">📸</div>
+                    <h1 style="color: white; margin: 8px 0 0;">Your photos are ready!</h1>
+                </div>
+                <div style="background: #F8FAFC; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #E2E8F0;">
+                    <p style="color: #0F172A;">Hi <b>{guest_name}</b>,</p>
+                    <p style="color: #64748B;">
+                        Great news! Your photos from <b>{event_name}</b> by <b>{photographer_name}</b> are now ready to view and download.
+                    </p>
+                    <p style="color: #64748B;">
+                        Upload a selfie to instantly find all your photos using our AI face recognition.
+                    </p>
+                    <a href="{guest_url}" style="display: block; background: #2563EB; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; margin-top: 20px;">
+                        Find my photos →
+                    </a>
+                    <p style="color: #94A3B8; font-size: 12px; margin-top: 24px; text-align: center;">
+                        Powered by SnapFace · AI Photo Sharing
+                    </p>
+                </div>
+            </div>
+            """,
+        }
+        resend.Emails.send(params)
+        return True
+    except Exception as e:
+        print(f"Photos ready email error: {e}")
+        return False

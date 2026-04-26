@@ -31,6 +31,12 @@ class GuestEventResponse(BaseModel):
     capsule_unlock_at: Optional[str]
     capsule_message: Optional[str]
     capsule_seconds_remaining: int
+    # Countdown fields
+    has_countdown: bool
+    countdown_is_active: bool
+    photos_ready_at: Optional[str]
+    countdown_seconds_remaining: int
+    countdown_message: Optional[str]
 
 
 class MatchedPhotoResponse(BaseModel):
@@ -80,6 +86,7 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
 
     total_photos = db.query(Photo).filter(Photo.event_id == event.id).count()
 
+    # Capsule
     capsule = db.query(Capsule).filter(Capsule.event_id == event.id).first()
     has_capsule = capsule is not None
     capsule_is_locked = False
@@ -99,7 +106,21 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
             diff = capsule.unlock_at - now
             capsule_seconds_remaining = max(0, int(diff.total_seconds()))
 
+    # Countdown
+    has_countdown = event.photos_ready_at is not None
+    countdown_is_active = False
+    countdown_seconds_remaining = 0
+
+    if event.photos_ready_at:
+        now_utc = datetime.now(tz=event.photos_ready_at.tzinfo)
+        if now_utc < event.photos_ready_at:
+            countdown_is_active = True
+            diff = event.photos_ready_at - now_utc
+            countdown_seconds_remaining = max(0, int(diff.total_seconds()))
+
+    # Track QR scan
     track(db, event.id, "qr_scan")
+
     return GuestEventResponse(
         id=str(event.id),
         name=event.name,
@@ -113,6 +134,11 @@ def get_guest_event(qr_token: str, db: Session = Depends(get_db)):
         capsule_unlock_at=capsule_unlock_at,
         capsule_message=capsule_message,
         capsule_seconds_remaining=capsule_seconds_remaining,
+        has_countdown=has_countdown,
+        countdown_is_active=countdown_is_active,
+        photos_ready_at=event.photos_ready_at.isoformat() if event.photos_ready_at else None,
+        countdown_seconds_remaining=countdown_seconds_remaining,
+        countdown_message=event.countdown_message,
     )
 
 
