@@ -8,3 +8,4 @@ from app.models.guest_gallery import GuestGallery
 from app.models.event_analytics import EventAnalytic
 from app.models.photo_reaction import PhotoReaction
 from app.models.photo_duplicate import PhotoDuplicate
+from app.models.attendee import Attendee

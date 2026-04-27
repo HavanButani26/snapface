@@ -9,6 +9,7 @@ backend/.env
 backend/venv
 backend/*.egg-info
 backend/.insightface
+backend/docker-compose.yml
 
 # OS
 .DS_Store

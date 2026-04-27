@@ -202,6 +202,12 @@ export default function EventDetailPage() {
                         >
                             ⏰ Event countdown
                         </button>
+                        <button
+                            onClick={() => router.push(`/events/${id}/attendance`)}
+                            className="w-full border border-slate-200 hover:border-green-300 text-slate-600 hover:text-green-600 text-sm py-2.5 rounded-lg transition font-medium"
+                        >
+                            👥 Attendance tracker
+                        </button>
                     </div>
                 </div>
             </div>
