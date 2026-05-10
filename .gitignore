@@ -13,3 +13,5 @@ backend/docker-compose.yml
 
 # OS
 .DS_Store
+
+# other
